@@ -8,7 +8,7 @@ Ethereum based NFT minter, marketplace and DeFi farming project
 truffle compile
 
 ## 3. deploy
-truffle migrate --reset --network <network-name>
+`truffle migrate --reset --network <network-name>`
 
 ## 4. test
-truffle test --network <network-name>
+`truffle test --network <network-name>`
