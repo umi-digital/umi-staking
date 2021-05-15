@@ -86,12 +86,12 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
         return lastDepositIds[_address];
     }
 
-    function getBalanceOfAccount(address account)
+    function getUmiTokenBalanceByAddress(address addr)
         public
         view
         returns (uint256)
     {
-        return umiToken.balanceOf(account);
+        return umiToken.balanceOf(addr);
     }
 
     function deposit(uint256 _amount) public {
