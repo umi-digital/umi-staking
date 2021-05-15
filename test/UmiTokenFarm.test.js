@@ -1,4 +1,5 @@
 require("dotenv").config()
+const UmiTokenMock = artifacts.require("UmiTokenMock");
 const UmiTokenFarm = artifacts.require("UmiTokenFarm");
 const envUtils = require("../src/utils/evnUtils");
 const BigNumber = require('bignumber.js');
@@ -12,13 +13,20 @@ function tokens(n) {
     return web3.utils.toWei(n, 'ether')
 }
 
+function parseWei2Ether(wei) {
+    return web3.utils.fromWei(wei, 'ether')
+}
+
 contract('UmiTokenFarm', async (accounts) => {
 
     console.log('accounts=' + accounts)
+    let umiTokenMock
     let umiTokenFarm
 
     before(async () => {
-        umiTokenFarm = await UmiTokenFarm.new(envUtils.getUmiTokenAddressByNetwork(), 1)
+        umiTokenMock = await UmiTokenMock.new()
+        console.log('test UmiTokenFarm before umiTokenMock address is %s', umiTokenMock.address)
+        umiTokenFarm = await UmiTokenFarm.new(umiTokenMock.address, 1)
         console.log('test UmiTokenFarm before umiTokenFarm address is %s', umiTokenFarm.address)
     })
 
@@ -42,10 +50,11 @@ contract('UmiTokenFarm', async (accounts) => {
             assert.equal(umiTokenTotalSupply, tokens('100000'))
         })
 
-        it('4th test, UmiToken address', async() => {
+        it('4th test, UmiToken address', async () => {
             const umiTokenAddress = await umiTokenFarm.getUmiTokenAddress()
             console.log('UmiToken address=%s', umiTokenAddress)
-            assert.equal(umiTokenAddress, envUtils.getUmiTokenAddressByNetwork())
+            // assert.equal(umiTokenAddress, envUtils.getUmiTokenAddressByNetwork())
+            assert.equal(umiTokenAddress, umiTokenMock.address)
         })
 
     })
@@ -58,44 +67,60 @@ contract('UmiTokenFarm', async (accounts) => {
             let banlance2 = await umiTokenFarm.getUmiTokenBalanceByAddress(accounts[2])
             let banlance3 = await umiTokenFarm.getUmiTokenBalanceByAddress(accounts[3])
             let banlance4 = await umiTokenFarm.getUmiTokenBalanceByAddress(accounts[4])
-            console.log('Get umiToken banlance by address banlance0=%s', banlance0)
-            console.log('Get umiToken banlance by address banlance1=%s', banlance1)
-            console.log('Get umiToken banlance by address banlance2=%s', banlance2)
-            console.log('Get umiToken banlance by address banlance3=%s', banlance3)
-            console.log('Get umiToken banlance by address banlance4=%s', banlance4)
-            assert.equal(banlance0, tokens('99800'))
-            assert.equal(banlance1, tokens('200'))
+            console.log('Get umiToken banlance by address banlance0=%s', parseWei2Ether(banlance0))
+            console.log('Get umiToken banlance by address banlance1=%s', parseWei2Ether(banlance1))
+            console.log('Get umiToken banlance by address banlance2=%s', parseWei2Ether(banlance2))
+            console.log('Get umiToken banlance by address banlance3=%s', parseWei2Ether(banlance3))
+            console.log('Get umiToken banlance by address banlance4=%s', parseWei2Ether(banlance4))
+            assert.equal(banlance0, tokens('100000'))
+            assert.equal(banlance1, tokens('0'))
             assert.equal(banlance2, tokens('0'))
             assert.equal(banlance3, tokens('0'))
             assert.equal(banlance4, tokens('0'))
         })
 
-        it('6th test, get umi token balance of contract', async() => {
+        it('6th test, get umi token balance of contract', async () => {
             const umiTokenBalanceOfContract = await umiTokenFarm.getUmiTokenBalanceByAddress(umiTokenFarm.address)
             console.log('6th umiTokenBalanceOfContract is %s', umiTokenBalanceOfContract)
+            assert.equal(umiTokenBalanceOfContract, 0)
         })
 
-        it('7th test, getLastDepositIds of contract', async() => {
-            const lastDepositIds = await umiTokenFarm.getLastDepositIds(umiTokenFarm.address)
+        it('7th test, getLastDepositIds of contract', async () => {
+            const lastDepositIds = await umiTokenFarm.getLastDepositIds(accounts[0])
             console.log('7th lastDepositIds of contract is %s', lastDepositIds)
             assert(lastDepositIds, 0)
         })
 
-        // it('8th test, deposit 10', async() => {
-            
-        //     console.log('accounts[0]=%s', accounts[0])
-        //     await umiTokenFarm.deposit(100, {from:accounts[0]})
-        // })
-
-        it('9h test, get umi token balance of contract', async() => {
-            const umiTokenBalanceOfContract = await umiTokenFarm.getUmiTokenBalanceByAddress(umiTokenFarm.address)
-            console.log('9th umiTokenBalanceOfContract is %s', umiTokenBalanceOfContract)
+        it('8th test, approve 10000 then deposit 800', async () => {
+            // approve 10000 tokens to umiTokenFarm contract
+            await umiTokenMock.approve(umiTokenFarm.address, tokens('10000'), { from: accounts[0] })
+            console.log('accounts[0]=%s', accounts[0])
+            // deposit 1000 umiTokenMock to umiTokenFarm contract
+            await umiTokenFarm.deposit(800, { from: accounts[0] })
         })
 
-        it('10th test, getLastDepositIds of contract', async() => {
-            const lastDepositIds = await umiTokenFarm.getLastDepositIds(umiTokenFarm.address)
+        it('9th test, get balance of account[0]', async() => {
+            const lastDepositIds = await umiTokenFarm.getLastDepositIds(accounts[0])
+            const balance = await umiTokenFarm.balances(accounts[0], lastDepositIds)
+            console.log('get balance of account[0]=%s, lastDepositIds=%s, balance=%s', accounts[0], lastDepositIds, balance)
+        })
+
+        it('10h test, get umi token balance of contract', async () => {
+            const umiTokenBalanceOfContract = await umiTokenFarm.getUmiTokenBalanceByAddress(umiTokenFarm.address)
+            console.log('9th umiTokenBalanceOfContract is %s', umiTokenBalanceOfContract)
+            assert.equal(umiTokenBalanceOfContract, 800)
+        })
+
+        it('11th test, getLastDepositIds of contract', async () => {
+            const lastDepositIds = await umiTokenFarm.getLastDepositIds(accounts[0])
             console.log('10th lastDepositIds of contract is %s', lastDepositIds)
-            // assert(lastDepositIds, 0)
+            assert(lastDepositIds, 1)
+        })
+
+        it('12th test, get umiTokenFarm contract balance', async () => {
+            const umiTokenFarmBalance = await umiTokenFarm.getContractBalance()
+            console.log('umiTokenFarmBalance balance is %s', umiTokenFarmBalance)
+            assert.equal(umiTokenFarmBalance, 0)
         })
 
     })
