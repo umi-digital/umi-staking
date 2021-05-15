@@ -96,19 +96,20 @@ contract('UmiTokenFarm', async (accounts) => {
             await umiTokenMock.approve(umiTokenFarm.address, tokens('10000'), { from: accounts[0] })
             console.log('accounts[0]=%s', accounts[0])
             // deposit 1000 umiTokenMock to umiTokenFarm contract
-            await umiTokenFarm.deposit(800, { from: accounts[0] })
+            await umiTokenFarm.deposit(tokens('800'), { from: accounts[0] })
         })
 
-        it('9th test, get balance of account[0]', async() => {
+        it('9th test, get balance of account[0],balance should be 800', async() => {
             const lastDepositIds = await umiTokenFarm.getLastDepositIds(accounts[0])
             const balance = await umiTokenFarm.balances(accounts[0], lastDepositIds)
             console.log('get balance of account[0]=%s, lastDepositIds=%s, balance=%s', accounts[0], lastDepositIds, balance)
+            assert.equal(800, parseWei2Ether(balance))
         })
 
         it('10h test, get umi token balance of contract', async () => {
             const umiTokenBalanceOfContract = await umiTokenFarm.getUmiTokenBalanceByAddress(umiTokenFarm.address)
             console.log('9th umiTokenBalanceOfContract is %s', umiTokenBalanceOfContract)
-            assert.equal(umiTokenBalanceOfContract, 800)
+            assert.equal(800, parseWei2Ether(umiTokenBalanceOfContract))
         })
 
         it('11th test, getLastDepositIds of contract', async () => {
