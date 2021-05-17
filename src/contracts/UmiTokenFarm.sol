@@ -5,9 +5,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
+import "./IERC20Mintable.sol";
 
 /**
  * Umi token staking
@@ -17,7 +16,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
     using SafeMath for uint256;
 
     // stake token
-    ERC20 public umiToken;
+    IERC20Mintable public umiToken;
 
     // The deposit balances of users(store address->(depositId->amount))
     mapping(address => mapping(uint256 => uint256)) public balances;
@@ -43,7 +42,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
             _tokenAddress.isContract(),
             "_tokenAddress is not a contract address"
         );
-        umiToken = ERC20(_tokenAddress);
+        umiToken = IERC20Mintable(_tokenAddress);
         apy = _apy;
     }
 
@@ -52,20 +51,6 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
      */
     function getUmiTokenAddress() public view returns (address) {
         return address(umiToken);
-    }
-
-    /**
-     * get umi token name
-     */
-    function getUmiTokenName() public view returns (string memory) {
-        return umiToken.name();
-    }
-
-    /**
-     * get umi token symbol
-     */
-    function getUmiTokenSymbol() public view returns (string memory) {
-        return umiToken.symbol();
     }
 
     function getUmiTokenTotalSupply() public view returns (uint256) {
@@ -165,7 +150,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
     function makeRequestedWithdrawal(uint256 _depositId, uint256 _amount) external {
         uint256 requestDate = withdrawalRequestsDates[msg.sender][_depositId];
         require(requestDate > 0, "withdrawal wasn't requested");
-        uint256 timestamp = _now();
+        // uint256 timestamp = _now();
         withdrawalRequestsDates[msg.sender][_depositId] = 0;
         _withdraw(msg.sender, _depositId, _amount, false);
     }

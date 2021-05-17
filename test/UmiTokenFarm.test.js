@@ -31,17 +31,17 @@ contract('UmiTokenFarm', async (accounts) => {
 
     describe('Test umi token', async () => {
 
-        it('1st test, UmiToken has a name', async () => {
-            const name = await umiTokenFarm.getUmiTokenName()
-            console.log('UmiToken has a name=%s', name)
-            assert.equal(name, 'UmiStakingToken')
-        })
+        // it('1st test, UmiToken has a name', async () => {
+        //     const name = await umiTokenFarm.getUmiTokenName()
+        //     console.log('UmiToken has a name=%s', name)
+        //     assert.equal(name, 'UmiStakingToken')
+        // })
 
-        it('2nd test, UmiToken has a symbol', async () => {
-            const symbol = await umiTokenFarm.getUmiTokenSymbol()
-            console.log('UmiToken has a symbol=%s', symbol)
-            assert.equal(symbol, 'UMIStake')
-        })
+        // it('2nd test, UmiToken has a symbol', async () => {
+        //     const symbol = await umiTokenFarm.getUmiTokenSymbol()
+        //     console.log('UmiToken has a symbol=%s', symbol)
+        //     assert.equal(symbol, 'UMIStake')
+        // })
 
         it('3rd test, UmiToken has a total supply', async () => {
             const umiTokenTotalSupply = await umiTokenFarm.getUmiTokenTotalSupply()
