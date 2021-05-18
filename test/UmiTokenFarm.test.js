@@ -162,6 +162,11 @@ contract('UmiTokenFarm', async (accounts) => {
             }
         })
 
+        it('19 test, cal', async() => {
+            let res = await umiTokenFarm.testCalcaulator()
+            console.log('19 test res=%s', res)
+        })
+
     })
 
 })

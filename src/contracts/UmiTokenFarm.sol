@@ -7,6 +7,8 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "./IERC20Mintable.sol";
+import "./Calculator.sol";
+
 
 /**
  * Umi token staking
@@ -257,5 +259,10 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
 
     function getContractBalance() public view returns (uint256) {
         return address(this).balance;
+    }
+
+    function testCalcaulator() public pure returns(int128) {
+        int128 res = Calculator.calculator(100, 10);
+        return res;
     }
 }

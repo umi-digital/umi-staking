@@ -2,6 +2,7 @@ require("dotenv").config()
 const Calculator = artifacts.require("Calculator");
 const UmiTokenMock = artifacts.require("UmiTokenMock");
 const UmiTokenFarm = artifacts.require("UmiTokenFarm");
+const ABDKMath64x64 = artifacts.require("ABDKMath64x64")
 const envUtils = require("../src/utils/evnUtils");
 const BigNumber = require('bignumber.js');
 
@@ -9,7 +10,9 @@ module.exports = async function(deployer, network, accounts) {
   
     console.log("UmiTokenFarm deploy to network=%s", network)
 
+    deployer.deploy(ABDKMath64x64)
     deployer.deploy(Calculator);
+    deployer.link(ABDKMath64x64, Calculator);
     deployer.link(Calculator, UmiTokenFarm);
 
     // deploy UmiTokenMock

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.3;
-import "../abdk-libraries/ABDKMath64x64.sol";
+import "./abdk-libraries/ABDKMath64x64.sol";
 
 /**
  * F=P*(1+i)^n
