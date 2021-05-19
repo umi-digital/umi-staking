@@ -129,7 +129,7 @@ contract('UmiTokenFarm', async (accounts) => {
             assert.equal(900, parseWei2Ether(totalStaked))
         })
 
-        it('15th test, withdraw 1000', async() => {
+        it('15th test, withdraw 600', async() => {
             // deposit 1 's amount is 800
             await umiTokenFarm.requestWithdrawal(1, {from: accounts[0]})
             // make withdraw 600
