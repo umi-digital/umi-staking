@@ -8,6 +8,8 @@ const { assert } = require("chai");
 require('chai')
     .use(require('chai-as-promised'))
     .should()
+   
+var BN = web3.utils.BN;
 
 function ether(n) {
     return web3.utils.toWei(n, 'ether')
@@ -164,7 +166,8 @@ contract('UmiTokenFarm', async (accounts) => {
 
         it('19 test, cal', async() => {
             let res = await umiTokenFarm.testCalcaulator()
-            console.log('19 test res=%s', res)
+            
+            console.log('19 test res=%s, %s', BN(res).toString());
         })
 
     })

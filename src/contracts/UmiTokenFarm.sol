@@ -262,7 +262,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
     }
 
     function testCalcaulator() public pure returns(int128) {
-        int128 res = Calculator.calculator(100, 10);
+        int128 res = Calculator.calculator(100, 10, 12, 100000);
         return res;
     }
 }
