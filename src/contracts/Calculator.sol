@@ -23,7 +23,7 @@ library Calculator {
         uint256 interest,
         int128 points
     ) public pure returns (int128 amount) {
-        int128 div = ABDKMath64x64.divu(interest, 3650000); //day rate
+        int128 div = ABDKMath64x64.divu(interest, 36500); //day rate
         int128 sum = ABDKMath64x64.add(ABDKMath64x64.fromInt(1), div);
         int128 pow = ABDKMath64x64.pow(sum, n);
         int128 mul = ABDKMath64x64.mul(ABDKMath64x64.fromInt(principal), pow);
