@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "./IERC20Mintable.sol";
 import "./Calculator.sol";
 
@@ -14,6 +15,7 @@ import "./Calculator.sol";
  * Umi token staking
  */
 contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
+
     using Address for address;
     using SafeMath for uint256;
 
@@ -25,8 +27,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
     // The dates of users' deposits(store address->(depositId->timestamp))
     mapping(address => mapping(uint256 => uint256)) public depositDates;
     // The dates of users' withdrawal requests(address->(depositId->timestamp))
-    mapping(address => mapping(uint256 => uint256))
-        public withdrawalRequestsDates;
+    mapping(address => mapping(uint256 => uint256)) public withdrawalRequestsDates;
     // The last deposit id(store address->last deposit id)
     mapping(address => uint256) public lastDepositIds;
     // The total staked amount
@@ -36,57 +37,49 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
     bool private locked;
 
     // APY (in percentage)
-    uint256 public APY = 1e17; // 10%, 0.1 ether
+    uint256 public APY = 12; // stand for 12%
+    // one day
+    uint256 private constant ONE_DAY = 1 days;
     // one year
     uint256 private constant YEAR = 365 days;
 
     constructor(address _tokenAddress, uint256 _APY) {
-        require(
-            _tokenAddress.isContract(),
-            "_tokenAddress is not a contract address"
-        );
+        require(_tokenAddress.isContract(), "_tokenAddress is not a contract address");
         umiToken = IERC20Mintable(_tokenAddress);
         APY = _APY;
     }
 
     /**
      * get umi token address
+     * @return Return umi token's address
      */
     function getUmiTokenAddress() public view returns (address) {
         return address(umiToken);
     }
 
+    /**
+    * get umi token total supply
+    * @return Return umi token total supply
+    */
     function getUmiTokenTotalSupply() public view returns (uint256) {
         return umiToken.totalSupply();
     }
 
     /**
-     * get apy
-     */
-    function getApy() public view returns (uint256) {
-        return APY;
-    }
-
-    /**
-     * only owner can set APY
+     * Only owner can set APY
+     * If you want to set apy 12%, you just set APY=12
+     * @param _APY Annual interest rate
      */
     function setAPY(uint256 _APY) public onlyOwner {
         APY = _APY;
     }
 
-    function setLastDepositIds() public returns (uint256) {
-        return ++lastDepositIds[msg.sender];
-    }
-
-    function getLastDepositIds(address _address) public view returns (uint256) {
-        return lastDepositIds[_address];
-    }
-
-    function getUmiTokenBalanceByAddress(address addr)
-        public
-        view
-        returns (uint256)
-    {
+    /**
+     * Get umi token balance by address
+     * @param addr The address of the account that needs to check the balance
+     * @return Return balance of umi token
+     */
+    function getUmiTokenBalance(address addr) public view returns (uint256) {
         return umiToken.balanceOf(addr);
     }
 
@@ -100,7 +93,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev This method is used to deposit tokens to the deposit opened before.
+     * This method is used to deposit tokens to the deposit opened before.
      * It calls the internal "_deposit" method and transfers tokens from sender to contract.
      * Sender must approve tokens first.
      *
@@ -112,36 +105,27 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
      * @param _depositId User's unique deposit ID.
      * @param _amount The amount to deposit.
      */
-    function deposit(uint256 _depositId, uint256 _amount) public {
-        require(
-            _depositId > 0 && _depositId <= lastDepositIds[msg.sender],
-            "wrong deposit id"
-        );
+    function deposit(uint256 _depositId, uint256 _amount) internal {
+        require(_depositId > 0 && _depositId <= lastDepositIds[msg.sender], "wrong deposit id");
         _deposit(msg.sender, _depositId, _amount);
         _setLocked(true);
-        require(
-            umiToken.transferFrom(msg.sender, address(this), _amount),
-            "transfer failed"
-        );
+        require(umiToken.transferFrom(msg.sender, address(this), _amount), "transfer failed");
         _setLocked(false);
     }
 
     /**
-     * @dev Calls internal "_mint" method, increases the user balance, and updates the deposit date.
+     * @dev Increases the user balance, and updates the deposit date.
      * @param _sender The address of the sender.
      * @param _id User's unique deposit ID.
      * @param _amount The amount to deposit.
      */
-    function _deposit(
-        address _sender,
-        uint256 _id,
-        uint256 _amount
-    ) internal nonReentrant {
+    function _deposit(address _sender, uint256 _id, uint256 _amount) internal nonReentrant {
         require(_amount > 0, "deposit amount should be more than 0");
         uint256 newBalance = balances[_sender][_id].add(_amount);
         balances[_sender][_id] = newBalance;
         totalStaked = totalStaked.add(_amount);
         depositDates[_sender][_id] = _now();
+        // send event
     }
 
     /**
@@ -153,10 +137,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
      * @param _depositId User's unique deposit ID.
      */
     function requestWithdrawal(uint256 _depositId) external {
-        require(
-            _depositId > 0 && _depositId <= lastDepositIds[msg.sender],
-            "wrong deposit id"
-        );
+        require(_depositId > 0 && _depositId <= lastDepositIds[msg.sender], "wrong deposit id");
         withdrawalRequestsDates[msg.sender][_depositId] = _now();
         // emit WithdrawalRequested(msg.sender, _depositId);
     }
@@ -170,14 +151,11 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
      * @param _depositId User's unique deposit ID.
      * @param _amount The amount to withdraw (0 - to withdraw all).
      */
-    function makeRequestedWithdrawal(uint256 _depositId, uint256 _amount)
-        external
-    {
+    function makeRequestedWithdrawal(uint256 _depositId, uint256 _amount) external {
         uint256 requestDate = withdrawalRequestsDates[msg.sender][_depositId];
         require(requestDate > 0, "withdrawal wasn't requested");
-        // uint256 timestamp = _now();
         withdrawalRequestsDates[msg.sender][_depositId] = 0;
-        _withdraw(msg.sender, _depositId, _amount, false);
+        _withdraw(msg.sender, _depositId, _amount);
     }
 
     /**
@@ -185,32 +163,77 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
      * @param _sender The address of the sender.
      * @param _id User's unique deposit ID.
      * @param _amount The amount to withdraw (0 - to withdraw all).
-     * @param _forced Defines whether to apply fee (true), or not (false).
      */
-    function _withdraw(
-        address _sender,
-        uint256 _id,
-        uint256 _amount,
-        bool _forced
-    ) internal nonReentrant {
-        require(
-            _id > 0 && _id <= lastDepositIds[_sender],
-            "_withdraw wrong deposit id"
-        );
-        require(
-            balances[_sender][_id] > 0 && balances[_sender][_id] >= _amount,
-            "_withdraw insufficient funds"
-        );
-        // (uint256 accruedEmission, uint256 timePassed) = _mint(_sender, _id, _amount);
-        // uint256 amount = _amount == 0 ? balances[_sender][_id] : _amount.add(accruedEmission);
+    function _withdraw(address _sender, uint256 _id, uint256 _amount) internal nonReentrant {
+        require(_id > 0 && _id <= lastDepositIds[_sender], "_withdraw wrong deposit id");
+        require(balances[_sender][_id] > 0 && balances[_sender][_id] >= _amount, "_withdraw insufficient funds");
+        // calculate interest
+        (uint256 totalWithInterest, uint256 timePassed) = calculateInterestAndTimePassed(_sender, _id, _amount);
+        require(totalWithInterest > 0 && timePassed > 0, "_withdraw totalWithInterest<=0 or timePassed<=0");
         uint256 amount = _amount == 0 ? balances[_sender][_id] : _amount;
         balances[_sender][_id] = balances[_sender][_id].sub(amount);
         totalStaked = totalStaked.sub(amount);
         if (balances[_sender][_id] == 0) {
             depositDates[_sender][_id] = 0;
         }
-        require(umiToken.transfer(_sender, amount), "transfer failed");
+        require(umiToken.transfer(_sender, totalWithInterest), "transfer failed");
         // emit Withdrawn(_sender, _id, amount, feeValue, balances[_sender][_id], accruedEmission, timePassed);
+    }
+
+    /**
+     * calculate interest and time passed
+     * @param _user User's address.
+     * @param _id User's unique deposit ID.
+     * @param _amount Amount based on which interest is calculated. When 0, current deposit balance is used.
+     * @return Return total with interest and time passed
+     */
+    function calculateInterestAndTimePassed(address _user, uint256 _id, uint256 _amount) internal view returns(uint256, uint256) {
+        uint256 currentBalance = balances[_user][_id];
+        uint256 amount = _amount == 0 ? currentBalance : _amount;
+        uint256 depositDate = depositDates[_user][_id];
+        if (amount == 0 || depositDate == 0) {
+            return (0, 0);
+        }
+        uint256 timePassed = _now().sub(depositDate);
+        if (timePassed < ONE_DAY) {
+            // if timePassed less than one day, interest will be 0
+            return (amount, timePassed);
+        }
+        // timePassed bigger than one day case
+        uint256 _days = timePassed.div(ONE_DAY);
+        int256 amountInt256 = SafeCast.toInt256(amount);
+        int128 amountInt128 = SafeCast.toInt128(amountInt256);
+        int128 tempTotalWithInterest =  Calculator.calculator(amountInt128, _days, APY, 100000);
+        uint256 totalWithInterest = SafeCast.toUint256(tempTotalWithInterest);
+        totalWithInterest = totalWithInterest.div(100000);
+        return (totalWithInterest, timePassed);
+    }
+
+    function testCalculateInterestAndTimePassed(uint256 _amount) public view returns(uint256) {
+        // uint256 currentBalance = 0.000500000000000001 ether;
+        uint256 currentBalance = 1000;
+        // uint256 currentBalance = 100000000;
+        // uint256 currentBalance = 1.99 ether;
+        uint256 amount = _amount == 0 ? currentBalance : _amount;
+        uint256 depositDate = _now() - (365 days - 1000);
+        if (amount == 0 || depositDate == 0) {
+            return _amount;
+        }
+        uint256 timePassed = _now().sub(depositDate);
+        if (timePassed < ONE_DAY) {
+            // if timePassed less than one day, interest will be 0
+            return amount;
+        }
+        // timePassed bigger than one day case
+        uint256 _days = timePassed.div(ONE_DAY);
+        // safe cast uint256 to int 256
+        int256 amountInt256 = SafeCast.toInt256(amount);
+        // safe cast int256 to int128
+        int128 amountInt128 = SafeCast.toInt128(amountInt256);
+        int128 tempTotalWithInterest =  Calculator.calculator(amountInt128, _days, APY, 100000);
+        uint256 totalWithInterest = SafeCast.toUint256(tempTotalWithInterest);
+        totalWithInterest = totalWithInterest.div(100000);
+        return totalWithInterest;
     }
 
     /**
@@ -226,15 +249,14 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
     {
         require(
             _address != address(0),
-            "getTotalUmiTokenBalanceByAddress zero address"
+            "getTotalBalanceOfUmiTokenByAddress zero address"
         );
-        uint256 lastDepositId = getLastDepositIds(_address);
+        uint256 lastDepositId = lastDepositIds[_address];
         if (lastDepositId <= 0) {
             return 0;
         }
         uint256 totalBalance;
-        mapping(uint256 => uint256) storage depositBalanceMapping =
-            balances[_address];
+        mapping(uint256 => uint256) storage depositBalanceMapping = balances[_address];
         for (uint256 i = 1; i <= lastDepositId; i++) {
             totalBalance += depositBalanceMapping[i];
         }
@@ -265,4 +287,5 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
         int128 res = Calculator.calculator(100, 365, 12, 100000);
         return res;
     }
+
 }

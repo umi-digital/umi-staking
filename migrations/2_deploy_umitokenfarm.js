@@ -21,7 +21,9 @@ module.exports = async function(deployer, network, accounts) {
     console.log("UmiTokenMock deploy to " + umiTokenMock.address)
 
     // deploy UmiTokenFarm, with 10% of APY
-    await deployer.deploy(UmiTokenFarm, umiTokenMock.address, new BigNumber(100000000000000000))
+    await deployer.deploy(UmiTokenFarm, umiTokenMock.address, 12)
     const umiTokenFarm = await UmiTokenFarm.deployed()
     console.log("UmiTokenFarm deploy to " + umiTokenFarm.address)
+    // await umiTokenFarm.setAPY(30, {from: accounts[0]})
+    console.log("UmiTokenFarm deploy apy=%s", await umiTokenFarm.APY())
 }
