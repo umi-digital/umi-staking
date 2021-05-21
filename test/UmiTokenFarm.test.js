@@ -177,6 +177,14 @@ contract('UmiTokenFarm', async (accounts) => {
             console.log('20 test testCalculateInterestAndTimePassed res=%s', BN(res).toString());
         })
 
+        it('20 test, testCalculator', async() => {
+
+            //third=1127474615638403709
+            //third=1127474615638402582
+            let res = await umiTokenFarm.testCalcaulator()
+            console.log('20 test testCalculateInterestAndTimePassed res=%s', BN(res).toString() );
+        })
+
     })
 
 })
