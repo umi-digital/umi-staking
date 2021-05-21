@@ -7,18 +7,29 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import "./IERC20Mintable.sol";
+import "./ERC20Interface.sol";
 import "./Calculator.sol";
 
 /**
- * Umi token staking
+ * Umi token farm
+ *
+ * 1st. Staking smart contract where users can connect via metamask and stake $UMI tokens
+ * 2nd. Rewards are paid in more $UMI
+ * 3rd. Rewards can be collected anytime
  */
 contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
     using Address for address;
     using SafeMath for uint256;
 
+    /**
+     * @dev Emitted when a new APY value is set.
+     * @param value A new APY value.
+     * @param sender The owner address at the moment of APY changing.
+     */
+    event ApySet(uint256 value, address sender);
+
     // stake token
-    IERC20Mintable public umiToken;
+    ERC20Interface public umiToken;
 
     // The deposit balances of users(store address->(depositId->amount))
     mapping(address => mapping(uint256 => uint256)) public balances;
@@ -35,45 +46,28 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
     // Variable that prevents _deposit method from being called 2 times
     bool private locked;
 
-    // APY (in percentage)
+    // default annual percentage yield is 12% (in percentage), only contract owner can modify it
     uint256 public APY = 12; // stand for 12%
-    // one day
+    // one day seconds
     uint256 private constant ONE_DAY = 1 days;
-    // one year
+    // one year seconds
     uint256 private constant YEAR = 365 days;
 
-    constructor(address _tokenAddress, uint256 _APY) {
-        require(
-            _tokenAddress.isContract(),
-            "_tokenAddress is not a contract address"
-        );
-        umiToken = IERC20Mintable(_tokenAddress);
-        APY = _APY;
-    }
-
-    /**
-     * get umi token address
-     * @return Return umi token's address
-     */
-    function getUmiTokenAddress() public view returns (address) {
-        return address(umiToken);
-    }
-
-    /**
-     * get umi token total supply
-     * @return Return umi token total supply
-     */
-    function getUmiTokenTotalSupply() public view returns (uint256) {
-        return umiToken.totalSupply();
+    constructor(address _tokenAddress) {
+        require(_tokenAddress.isContract(), "_tokenAddress is not a contract address");
+        umiToken = ERC20Interface(_tokenAddress);
     }
 
     /**
      * Only owner can set APY
-     * If you want to set apy 12%, you just set APY=12
-     * @param _APY Annual interest rate
+     *
+     * Note: If you want to set apy 12%, just pass 12
+     *
+     * @param _APY annual percentage yield
      */
     function setAPY(uint256 _APY) public onlyOwner {
         APY = _APY;
+        emit ApySet(APY, msg.sender);
     }
 
     /**
@@ -87,7 +81,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
 
     /**
      * This method is used to deposit tokens to a new deposit.
-     * It generates a new deposit ID and calls another public "deposit" method. See its description.
+     * It generates a new deposit ID and calls another internal "deposit" method. See its description.
      * @param _amount The amount to deposit.
      */
     function deposit(uint256 _amount) public {
@@ -95,7 +89,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
     }
 
     /**
-     * This method is used to deposit tokens to the deposit opened before.
+     * This method is used to deposit tokens.
      * It calls the internal "_deposit" method and transfers tokens from sender to contract.
      * Sender must approve tokens first.
      *
@@ -133,15 +127,15 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
         uint256 _amount
     ) internal nonReentrant {
         require(_amount > 0, "deposit amount should be more than 0");
-        uint256 newBalance = balances[_sender][_id].add(_amount);
-        balances[_sender][_id] = newBalance;
+        // uint256 newBalance = balances[_sender][_id].add(_amount);
+        balances[_sender][_id] = _amount;
         totalStaked = totalStaked.add(_amount);
         depositDates[_sender][_id] = _now();
         // send event
     }
 
     /**
-     * @dev This method is used to request a withdrawal without a fee.
+     * This method is used to request a withdrawal.
      * It sets the date of the request.
      *
      * Note: each call updates the date of the request so don't call this method twice during the lock.
@@ -158,10 +152,10 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev This method is used to make a requested withdrawal.
+     * This method is used to make a requested withdrawal.
      * It calls the internal "_withdraw" method and resets the date of the request.
      *
-     * Sender should call requestWithdrawal first.
+     * Note: Sender should call requestWithdrawal first.
      *
      * @param _depositId User's unique deposit ID.
      * @param _amount The amount to withdraw (0 - to withdraw all).
@@ -176,7 +170,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Calls internal "_mint" method and then transfers tokens to the sender.
+     * Calls internal "calculateInterestAndTimePassed" method and then transfers tokens to the sender.
      * @param _sender The address of the sender.
      * @param _id User's unique deposit ID.
      * @param _amount The amount to withdraw (0 - to withdraw all).
@@ -232,12 +226,13 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
         if (amount == 0 || depositDate == 0) {
             return (0, 0);
         }
+        // seconds
         uint256 timePassed = _now().sub(depositDate);
         if (timePassed < ONE_DAY) {
-            // if timePassed less than one day, interest will be 0
+            // if timePassed less than one day, rewards will be 0
             return (amount, timePassed);
         }
-        // timePassed bigger than one day case
+        // timePassed bigger than one day case, periods for calculating interest
         uint256 _days = timePassed.div(ONE_DAY);
         uint256 totalWithInterest = Calculator.calculator(amount, APY, _days);
         return (totalWithInterest, timePassed);
@@ -270,20 +265,15 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
     }
 
     /**
-     * get total balance of umiToken of address
+     * Get total balance of user.
+     *
+     * Note: Iter balances mapping to get total balance of address
      *
      * @param _address User's address or Contract's address
-     * @return Returns current _address's umiToken balance
+     * @return Returns current _address's total balance
      */
-    function getTotalBalanceOfUmiTokenByAddress(address _address)
-        public
-        view
-        returns (uint256)
-    {
-        require(
-            _address != address(0),
-            "getTotalBalanceOfUmiTokenByAddress zero address"
-        );
+    function getTotalBalanceOfUser(address _address) public view returns (uint256) {
+        require(_address != address(0), "getTotalBalanceOfUser zero address");
         uint256 lastDepositId = lastDepositIds[_address];
         if (lastDepositId <= 0) {
             return 0;
@@ -313,14 +303,11 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
         locked = _locked;
     }
 
-    function getContractBalance() public view returns (uint256) {
-        return address(this).balance;
-    }
-
     function testCalcaulator() public pure returns (uint256) {
         //uint256 p = 1.000000000000001 ether;
         uint256 p = 1000000000000000000 ether;
         uint256 v2 = Calculator.calculator(p, 12, 100);
         return v2;
     }
+
 }
