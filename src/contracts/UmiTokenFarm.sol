@@ -271,32 +271,6 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
         return (totalWithInterest, timePassed);
     }
 
-    function testCalculateInterestAndTimePassed(uint256 _amount)
-        public
-        view
-        returns (uint256)
-    {
-        // uint256 currentBalance = 0.000500000000000001 ether;
-        uint256 currentBalance = 1000;
-        // uint256 currentBalance = 100000000;
-        // uint256 currentBalance = 1.99 ether;
-        uint256 amount = _amount == 0 ? currentBalance : _amount;
-        uint256 depositDate = _now() - (365 days - 1000);
-        if (amount == 0 || depositDate == 0) {
-            return _amount;
-        }
-        uint256 timePassed = _now().sub(depositDate);
-        if (timePassed < ONE_DAY) {
-            // if timePassed less than one day, interest will be 0
-            return amount;
-        }
-        // timePassed bigger than one day case
-        uint256 _days = timePassed.div(ONE_DAY);
-        uint256 totalWithInterest = Calculator.calculator(amount, APY, _days);
-
-        return totalWithInterest;
-    }
-
     /**
      * Get total balance of user.
      *
@@ -333,14 +307,6 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
      */
     function _setLocked(bool _locked) internal {
         locked = _locked;
-    }
-
-    function testCalcaulator() public pure returns (uint256) {
-        uint256 p = 0.00000000000000001 ether;
-        // uint256 p = 1000000000000000000 ether;
-        // uint256 p = 1000000000000000000.001 ether;
-        uint256 v2 = Calculator.calculator(p, 365, 12);
-        return v2;
     }
 
 }

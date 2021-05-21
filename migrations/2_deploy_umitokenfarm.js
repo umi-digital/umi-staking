@@ -9,11 +9,6 @@ module.exports = async function (deployer, network, accounts) {
 
     console.log("UmiTokenFarm deploy to network=%s", network)
 
-    await deployer.deploy(ABDKMath64x64);
-    await deployer.deploy(Calculator);
-    await deployer.link(ABDKMath64x64, Calculator);
-    await deployer.link(Calculator, UmiTokenFarm);
-
     // UmiToken address(default is mainnet address), on local ganache or rinkeby network it will be UmiTokenMock‘s address
     let umiTokenAddress = process.env.MAINNET_UMI_TOKEN_ADDRESS;
 
