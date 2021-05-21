@@ -143,10 +143,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
      * @param _depositId User's unique deposit ID.
      */
     function requestWithdrawal(uint256 _depositId) external {
-        require(
-            _depositId > 0 && _depositId <= lastDepositIds[msg.sender],
-            "wrong deposit id"
-        );
+        require(_depositId > 0 && _depositId <= lastDepositIds[msg.sender], "requestWithdrawal with wrong deposit id");
         withdrawalRequestsDates[msg.sender][_depositId] = _now();
         // emit WithdrawalRequested(msg.sender, _depositId);
     }
@@ -160,9 +157,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
      * @param _depositId User's unique deposit ID.
      * @param _amount The amount to withdraw (0 - to withdraw all).
      */
-    function makeRequestedWithdrawal(uint256 _depositId, uint256 _amount)
-        external
-    {
+    function makeRequestedWithdrawal(uint256 _depositId, uint256 _amount) external {
         uint256 requestDate = withdrawalRequestsDates[msg.sender][_depositId];
         require(requestDate > 0, "withdrawal wasn't requested");
         withdrawalRequestsDates[msg.sender][_depositId] = 0;
@@ -219,7 +214,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
         address _user,
         uint256 _id,
         uint256 _amount
-    ) internal view returns (uint256, uint256) {
+    ) public view returns (uint256, uint256) {
         uint256 currentBalance = balances[_user][_id];
         uint256 amount = _amount == 0 ? currentBalance : _amount;
         uint256 depositDate = depositDates[_user][_id];
@@ -234,7 +229,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
         }
         // timePassed bigger than one day case, periods for calculating interest
         uint256 _days = timePassed.div(ONE_DAY);
-        uint256 totalWithInterest = Calculator.calculator(amount, APY, _days);
+        uint256 totalWithInterest = Calculator.calculator(amount, _days, APY);
         return (totalWithInterest, timePassed);
     }
 
@@ -279,8 +274,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
             return 0;
         }
         uint256 totalBalance;
-        mapping(uint256 => uint256) storage depositBalanceMapping =
-            balances[_address];
+        mapping(uint256 => uint256) storage depositBalanceMapping = balances[_address];
         for (uint256 i = 1; i <= lastDepositId; i++) {
             totalBalance += depositBalanceMapping[i];
         }
@@ -297,16 +291,17 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Sets lock to prevent reentrance.
+     * Sets lock to prevent reentrance.
      */
     function _setLocked(bool _locked) internal {
         locked = _locked;
     }
 
     function testCalcaulator() public pure returns (uint256) {
-        //uint256 p = 1.000000000000001 ether;
-        uint256 p = 1000000000000000000 ether;
-        uint256 v2 = Calculator.calculator(p, 12, 100);
+        uint256 p = 0.00000000000000001 ether;
+        // uint256 p = 1000000000000000000 ether;
+        // uint256 p = 1000000000000000000.001 ether;
+        uint256 v2 = Calculator.calculator(p, 365, 12);
         return v2;
     }
 
