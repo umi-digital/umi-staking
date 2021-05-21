@@ -22,11 +22,50 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
     using SafeMath for uint256;
 
     /**
+     * Emitted when a user deposits tokens.
+     * @param sender User address.
+     * @param id User's unique deposit ID.
+     * @param amount The amount of deposited tokens.
+     * @param balance Current user balance.
+     */
+    event Deposited(
+        address indexed sender,
+        uint256 indexed id,
+        uint256 amount,
+        uint256 balance
+    );
+
+    /**
      * @dev Emitted when a new APY value is set.
      * @param value A new APY value.
      * @param sender The owner address at the moment of APY changing.
      */
     event ApySet(uint256 value, address sender);
+
+    /**
+     * @dev Emitted when a user requests withdrawal.
+     * @param sender User address.
+     * @param id User's unique deposit ID.
+     */
+    event WithdrawalRequested(address indexed sender, uint256 indexed id);
+
+    /**
+     * @dev Emitted when a user withdraws tokens.
+     * @param sender User address.
+     * @param id User's unique deposit ID.
+     * @param amount The amount of withdrawn tokens.
+     * @param balance Current user balance.
+     * @param totalWithInterest The amount of withdrawn tokens with interest.
+     * @param timePassed TimePassed seconds.
+     */
+    event Withdrawn(
+        address indexed sender,
+        uint256 indexed id,
+        uint256 amount,
+        uint256 balance,
+        uint256 totalWithInterest, 
+        uint256 timePassed
+    );
 
     // stake token
     ERC20Interface public umiToken;
@@ -127,11 +166,10 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
         uint256 _amount
     ) internal nonReentrant {
         require(_amount > 0, "deposit amount should be more than 0");
-        // uint256 newBalance = balances[_sender][_id].add(_amount);
         balances[_sender][_id] = _amount;
         totalStaked = totalStaked.add(_amount);
         depositDates[_sender][_id] = _now();
-        // send event
+        emit Deposited(_sender, _id, _amount, _amount);
     }
 
     /**
@@ -145,7 +183,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
     function requestWithdrawal(uint256 _depositId) external {
         require(_depositId > 0 && _depositId <= lastDepositIds[msg.sender], "requestWithdrawal with wrong deposit id");
         withdrawalRequestsDates[msg.sender][_depositId] = _now();
-        // emit WithdrawalRequested(msg.sender, _depositId);
+        emit WithdrawalRequested(msg.sender, _depositId);
     }
 
     /**
@@ -200,7 +238,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
             umiToken.transfer(_sender, totalWithInterest),
             "transfer failed"
         );
-        // emit Withdrawn(_sender, _id, amount, feeValue, balances[_sender][_id], accruedEmission, timePassed);
+        emit Withdrawn(_sender, _id, amount, balances[_sender][_id], totalWithInterest, timePassed);
     }
 
     /**
