@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "./ERC20Interface.sol";
-import { Calculator } from "./Calculator.sol";
+import "./Calculator.sol";
 
 /**
  * Umi token farm

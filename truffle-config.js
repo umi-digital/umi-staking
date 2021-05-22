@@ -46,7 +46,7 @@ module.exports = {
         return new HDWalletProvider(process.env.RINKEBY_MNEMONIC, process.env.RINKEBY_RPC_URL);
       },
       network_id: '4',
-      gas: 5000000,
+      gas: 7500000,
       gasPrice: 10000000000,
       from: process.env.RINKEBY_ACCOUNT,
       timeoutBlocks: 200,
