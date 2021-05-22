@@ -23,7 +23,8 @@ function parseWei2Ether(wei) {
 contract('UmiTokenFarm', async (accounts) => {
 
     const YEAR = new BN(31536000); // in seconds
-    const TEN_DAYS = new BN(10 * 24 * 60 * 60)
+    const TEN_DAYS = new BN(10 * 24 * 60 * 60);
+    const ONE_DAYS = new BN(24 * 60 * 60);
 
     async function getBlockTimestamp(receipt) {
         return new BN((await web3.eth.getBlock(receipt.receipt.blockNumber)).timestamp);
@@ -277,7 +278,7 @@ contract('UmiTokenFarm', async (accounts) => {
 
             // 15.4. before Withdrawal balance of accounts[0]
             let beforeWithdrawalBalance =  await umiTokenFarm.getUmiTokenBalance(accounts[0]);
-            console.log('before Withdrawal balance of accounts[0] %s', parseWei2Ether(beforeWithdrawalBalance))
+            console.log('Deposit 1000, before Withdrawal balance of accounts[0] %s', parseWei2Ether(beforeWithdrawalBalance))
 
             // 15.5. requestWithdrawal
             await umiTokenFarm.requestWithdrawal(lastDepositIdsOfAccount0, { from: accounts[0] });
@@ -295,10 +296,10 @@ contract('UmiTokenFarm', async (accounts) => {
 
             // 15.9. after Withdrawal balance of accounts[0]
             let afterWithdrawalBalance =  await umiTokenFarm.getUmiTokenBalance(accounts[0]);
-            console.log('after Withdrawal balance of accounts[0] %s', parseWei2Ether(afterWithdrawalBalance))
+            console.log('Withdrawal 1000 ten days later, after Withdrawal balance of accounts[0] %s', parseWei2Ether(afterWithdrawalBalance))
         })
 
-        it('16th test, makeRequestedWithdrawal correct withdrawal part of balance', async () => {
+        it('16th test, makeRequestedWithdrawal correct, deposit 1000 then withdrawal 500 ', async () => {
             // 16.1. deposit 1000 umiTokenMock to umiTokenFarm contract
             let receipt = await umiTokenFarm.deposit(ether('1000'), { from: accounts[0] })
             // 16.2. get timestamp of deposit
@@ -310,7 +311,7 @@ contract('UmiTokenFarm', async (accounts) => {
 
             // 16.4. before Withdrawal balance of accounts[0]
             let beforeWithdrawalBalance =  await umiTokenFarm.getUmiTokenBalance(accounts[0]);
-            console.log('before Withdrawal balance of accounts[0] %s', parseWei2Ether(beforeWithdrawalBalance))
+            console.log('Deposit 1000, before Withdrawal balance of accounts[0] %s', parseWei2Ether(beforeWithdrawalBalance))
 
             // 16.5. requestWithdrawal
             await umiTokenFarm.requestWithdrawal(lastDepositIdsOfAccount0, { from: accounts[0] });
@@ -328,7 +329,7 @@ contract('UmiTokenFarm', async (accounts) => {
 
             // 16.9. after Withdrawal balance of accounts[0]
             let afterWithdrawalBalance =  await umiTokenFarm.getUmiTokenBalance(accounts[0]);
-            console.log('after Withdrawal balance of accounts[0] %s', parseWei2Ether(afterWithdrawalBalance))
+            console.log('Withdrawal 500 ten days later, after Withdrawal balance of accounts[0] %s', parseWei2Ether(afterWithdrawalBalance))
         })
 
         it('17th test, makeRequestedWithdrawal should fail if not requested', async () => {
@@ -346,7 +347,7 @@ contract('UmiTokenFarm', async (accounts) => {
 
     // test getTotalBalanceOfUser
     describe('Test getTotalBalanceOfUser', async () => {
-        // total balance of accounts[0] will be 3000, total balance of accounts[1] will be 200
+        // total balance of accounts[0] will be 3500, total balance of accounts[1] will be 200
         it('18th test, getTotalBalanceOfUser correct', async () => {
             let totalBalance = await umiTokenFarm.getTotalBalanceOfUser(accounts[0])
             assert.equal(3500, parseWei2Ether(totalBalance))
