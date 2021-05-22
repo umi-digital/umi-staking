@@ -17,7 +17,7 @@ The smart contract is deployed and fully tested on the local Ethereum VM.
 
 ## 3. File structures
 
-src/contracts
+contracts
 
 - abdk-libraries - Library of mathematical functions operating with IEEE 754 quadruple precision (128 bit) floating point numbers.
 - mocks - TestRewards.sol for testing rewards calculation, UmiTokenMock.sol for mocking local ERC20 token. They do not need to be deployed to mainnet.

@@ -27,7 +27,8 @@ module.exports = async function (deployer, network, accounts) {
 
         await deployer.link(Calculator, TestRewards)
         // Deploy TestRewards, test and verify rewards calculation
-        const testRewards = await deployer.deploy(TestRewards)
+        await deployer.deploy(TestRewards)
+        const testRewards =  await TestRewards.deployed()
         console.log('Not on mainnet, TestRewards deployed to %s', testRewards.address)
     }
 

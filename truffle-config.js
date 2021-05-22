@@ -17,7 +17,7 @@
  * phrase from a file you've .gitignored so it doesn't accidentally become public.
  *
  */
- require("dotenv").config()
+require("dotenv").config()
 const HDWalletProvider = require("@truffle/hdwallet-provider");
 module.exports = {
   /**
@@ -29,7 +29,6 @@ module.exports = {
    *
    * $ truffle test --network <network-name>
    */
-
   networks: {
     // Useful for testing. The `development` name is special - truffle uses it by default
     // if it's defined here and no other network is specified at the command line.
@@ -37,12 +36,12 @@ module.exports = {
     // tab if you use this network and you must also set the `host`, `port` and `network_id`
     // options below to some value.
     //
-    local: {
+    local:{
       host: "127.0.0.1", // Localhost (default: none)
       port: 7545, // Standard Ethereum port (default: none)
       network_id: "*", // Any network (default: none)
     },
-    rinkeby : {
+    rinkeby: {
       provider: function() {
         return new HDWalletProvider(process.env.RINKEBY_MNEMONIC, process.env.RINKEBY_RPC_URL);
       },
@@ -54,7 +53,7 @@ module.exports = {
       confirmations: 2,
       skipDryRun: true
     },
-    mainnet : {
+    mainnet: {
       provider: function() {
         return new HDWalletProvider(process.env.MAINNET_MNEMONIC, process.env.MAINNET_RPC_URL);
       },
@@ -72,7 +71,7 @@ module.exports = {
   mocha: {
     // timeout: 100000
   },
-  contracts_directory: './src/contracts/',
+  // contracts_directory: './src/contracts/',
   // Configure your compilers
   compilers: {
     solc: {
