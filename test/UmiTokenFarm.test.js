@@ -241,15 +241,106 @@ contract('UmiTokenFarm', async (accounts) => {
 
     // test requestWithdrawal
     describe('Test requestWithdrawal', async () => {
-        it('13th test, request withdrawal correct', async () => {
-            // accounts[0] has two deposits, get one of them
-            const receipt = await umiTokenFarm.requestWithdrawal(1, { from: accounts[0] });
-            const timestamp = await getBlockTimestamp(receipt);
-            const withdrawalRequestsDate = await umiTokenFarm.withdrawalRequestsDates(accounts[0], 1);
-            assert.equal(BN(timestamp).toString(), BN(withdrawalRequestsDate).toString())
+        // before deposit, owner should approve UmiTokenFarm contract
+        before(async () => {
+            // account[0] approve 10000 tokens to UmiTokenFarm
+            await umiTokenMock.approve(umiTokenFarm.address, ether('10000'), { from: accounts[0] })
+            // account[1] approve 10000 tokens to UmiTokenFarm
+            await umiTokenMock.approve(umiTokenFarm.address, ether('10000'), { from: accounts[1] })
+            // account[2] approve 10000 tokens to UmiTokenFarm
+            await umiTokenMock.approve(umiTokenFarm.address, ether('10000'), { from: accounts[2] })
         })
 
-        it('14th test, request withdrawal incorrect, with wrong deposit id', async () => {
+        it('13th test, requestWithdrawal correct, to withdraw all', async () => {
+            // 13.1. deposit 1000 umiTokenMock to umiTokenFarm contract
+            let receipt = await umiTokenFarm.deposit(ether('1000'), { from: accounts[0] })
+            // 13.2. get timestamp of deposit
+            const timestampDeposit = await getBlockTimestamp(receipt);
+            // increase time for ten days later
+            await time.increase(TEN_DAYS)
+            // 13.3. deposit success, get lastDepositIds of accounts[0]
+            const lastDepositIdsOfAccount0 = await umiTokenFarm.lastDepositIds(accounts[0])
+
+            // 13.4. before Withdrawal balance of accounts[0]
+            let beforeWithdrawalBalance =  await umiTokenFarm.getUmiTokenBalance(accounts[0]);
+            console.log('Deposit 1000, before Withdrawal balance of accounts[0] %s', parseWei2Ether(beforeWithdrawalBalance))
+
+            // 13.5. requestWithdrawal
+            await umiTokenFarm.requestWithdrawal(lastDepositIdsOfAccount0, ether('1000'), { from: accounts[0] });
+
+            // 13.6. withdrawalRequestsDates will be 0
+            const withdrawalRequestsDate = await umiTokenFarm.withdrawalRequestsDates(accounts[0], lastDepositIdsOfAccount0);
+            assert.equal(0, withdrawalRequestsDate)
+            // 13.7. balance will be 0
+            const balances = await umiTokenFarm.balances(accounts[0], lastDepositIdsOfAccount0)
+            assert.equal(parseWei2Ether(balances), 0)
+
+            // 13.8. after Withdrawal balance of accounts[0]
+            let afterWithdrawalBalance =  await umiTokenFarm.getUmiTokenBalance(accounts[0]);
+            console.log('Withdrawal 1000 ten days later, after Withdrawal balance of accounts[0] %s', parseWei2Ether(afterWithdrawalBalance))
+        })
+
+        it('14th test, requestWithdrawal correct, deposit 1000 then withdrawal 500 ', async () => {
+            // 14.1. deposit 1000 umiTokenMock to umiTokenFarm contract
+            let receipt = await umiTokenFarm.deposit(ether('1000'), { from: accounts[1] })
+            // 14.2. get timestamp of deposit
+            const timestampDeposit = await getBlockTimestamp(receipt);
+            // increase time for ten days later
+            await time.increase(TEN_DAYS)
+            // 14.3. deposit success, get lastDepositIds of accounts[1]
+            const lastDepositIdsOfAccount1 = await umiTokenFarm.lastDepositIds(accounts[1])
+
+            // 14.4. before Withdrawal balance of accounts[1]
+            let beforeWithdrawalBalance =  await umiTokenFarm.getUmiTokenBalance(accounts[1]);
+            console.log('Deposit 1000, before Withdrawal balance of accounts[1] %s', parseWei2Ether(beforeWithdrawalBalance))
+
+            // 14.5. requestWithdrawal
+            await umiTokenFarm.requestWithdrawal(lastDepositIdsOfAccount1, ether('500'), { from: accounts[1] });
+            const timestampWithdrawal = await getBlockTimestamp(receipt);
+
+            // 14.6. withdrawalRequestsDates will be 0
+            const withdrawalRequestsDate = await umiTokenFarm.withdrawalRequestsDates(accounts[1], lastDepositIdsOfAccount1);
+            assert.equal(0, withdrawalRequestsDate)
+            // 14.7. balance will be 500
+            const balances = await umiTokenFarm.balances(accounts[1], lastDepositIdsOfAccount1)
+            assert.equal(parseWei2Ether(balances), 500)
+
+            // 14.8. after Withdrawal balance of accounts[1]
+            let afterWithdrawalBalance =  await umiTokenFarm.getUmiTokenBalance(accounts[1]);
+            console.log('Withdrawal 500 ten days later, after Withdrawal balance of accounts[1] %s', parseWei2Ether(afterWithdrawalBalance))
+        })
+
+        // accounts[2] deposit 1000 ether, and withdraw all after 2 years later
+        it('15th test, requestWithdrawal withdraw all after 2 years later', async () => {
+            // 15.1. deposit 1000 umiTokenMock to umiTokenFarm contract
+            let receipt = await umiTokenFarm.deposit(ether('1000'), { from: accounts[2] })
+            // 15.2. get timestamp of deposit
+            const timestampDeposit = await getBlockTimestamp(receipt);
+            // increase time for 2 years later
+            await time.increase(TWO_YEARS)
+            // 15.3. deposit success, get lastDepositIds of accounts[2]
+            const lastDepositIdsOfAccount2 = await umiTokenFarm.lastDepositIds(accounts[2])
+
+            // 15.4. before Withdrawal balance of accounts[2]
+            let beforeWithdrawalBalance =  await umiTokenFarm.getUmiTokenBalance(accounts[2]);
+            console.log('Deposit 1000, before Withdrawal balance of accounts[2] %s', parseWei2Ether(beforeWithdrawalBalance))
+
+            // 15.5. requestWithdrawal
+            await umiTokenFarm.requestWithdrawal(lastDepositIdsOfAccount2, ether('1000'), { from: accounts[2] });
+
+            // 15.6. withdrawalRequestsDates will be 0
+            const withdrawalRequestsDate = await umiTokenFarm.withdrawalRequestsDates(accounts[2], lastDepositIdsOfAccount2);
+            assert.equal(0, withdrawalRequestsDate)
+            // 15.7. makeRequestedWithdrawal balance will be 0
+            const balances = await umiTokenFarm.balances(accounts[2], lastDepositIdsOfAccount2)
+            assert.equal(parseWei2Ether(balances), 0)
+
+            // 15.8. after Withdrawal balance of accounts[2]
+            let afterWithdrawalBalance =  await umiTokenFarm.getUmiTokenBalance(accounts[2]);
+            console.log('Withdrawal 1000 2 years later, after Withdrawal balance of accounts[2] %s', parseWei2Ether(afterWithdrawalBalance))
+        })
+
+        it('16th test, request withdrawal incorrect, with wrong deposit id', async () => {
             let requestWithdrawalFailed = false;
             try {
                 await umiTokenFarm.requestWithdrawal(3, { from: accounts[0] })
@@ -261,137 +352,14 @@ contract('UmiTokenFarm', async (accounts) => {
         })
     })
 
-    // test makeRequestedWithdrawal, Sender should call requestWithdrawal first
-    describe('Test makeRequestedWithdrawal', async () => {
-        // before deposit, owner should approve UmiTokenFarm contract
-        before(async () => {
-            // account[0] approve 10000 tokens to UmiTokenFarm
-            await umiTokenMock.approve(umiTokenFarm.address, ether('10000'), { from: accounts[0] })
-            // account[2] approve 10000 tokens to UmiTokenFarm
-            await umiTokenMock.approve(umiTokenFarm.address, ether('10000'), { from: accounts[2] })
-        })
-
-        it('15th test, makeRequestedWithdrawal correct 0 - to withdraw all', async () => {
-            // 15.1. deposit 1000 umiTokenMock to umiTokenFarm contract
-            let receipt = await umiTokenFarm.deposit(ether('1000'), { from: accounts[0] })
-            // 15.2. get timestamp of deposit
-            const timestampDeposit = await getBlockTimestamp(receipt);
-            // increase time for ten days later
-            await time.increase(TEN_DAYS)
-            // 15.3. deposit success, get lastDepositIds of accounts[0]
-            const lastDepositIdsOfAccount0 = await umiTokenFarm.lastDepositIds(accounts[0])
-
-            // 15.4. before Withdrawal balance of accounts[0]
-            let beforeWithdrawalBalance =  await umiTokenFarm.getUmiTokenBalance(accounts[0]);
-            console.log('Deposit 1000, before Withdrawal balance of accounts[0] %s', parseWei2Ether(beforeWithdrawalBalance))
-
-            // 15.5. requestWithdrawal
-            await umiTokenFarm.requestWithdrawal(lastDepositIdsOfAccount0, { from: accounts[0] });
-            // 15.6. makeRequestedWithdrawal, 0 - to withdraw all
-            receipt = await umiTokenFarm.makeRequestedWithdrawal(lastDepositIdsOfAccount0, 0, { from: accounts[0] });
-            const timestampWithdrawal = await getBlockTimestamp(receipt);
-            const timePassed = timestampWithdrawal.sub(timestampDeposit);
-
-            // 15.7. withdrawalRequestsDates will be 0
-            const withdrawalRequestsDate = await umiTokenFarm.withdrawalRequestsDates(accounts[0], lastDepositIdsOfAccount0);
-            assert.equal(0, withdrawalRequestsDate)
-            // 15.8. makeRequestedWithdrawal balance will be 0
-            const balances = await umiTokenFarm.balances(accounts[0], lastDepositIdsOfAccount0)
-            assert.equal(parseWei2Ether(balances), 0)
-
-            // 15.9. after Withdrawal balance of accounts[0]
-            let afterWithdrawalBalance =  await umiTokenFarm.getUmiTokenBalance(accounts[0]);
-            console.log('Withdrawal 1000 ten days later, after Withdrawal balance of accounts[0] %s', parseWei2Ether(afterWithdrawalBalance))
-        })
-
-        it('16th test, makeRequestedWithdrawal correct, deposit 1000 then withdrawal 500 ', async () => {
-            // 16.1. deposit 1000 umiTokenMock to umiTokenFarm contract
-            let receipt = await umiTokenFarm.deposit(ether('1000'), { from: accounts[0] })
-            // 16.2. get timestamp of deposit
-            const timestampDeposit = await getBlockTimestamp(receipt);
-            // increase time for ten days later
-            await time.increase(TEN_DAYS)
-            // 16.3. deposit success, get lastDepositIds of accounts[0]
-            const lastDepositIdsOfAccount0 = await umiTokenFarm.lastDepositIds(accounts[0])
-
-            // 16.4. before Withdrawal balance of accounts[0]
-            let beforeWithdrawalBalance =  await umiTokenFarm.getUmiTokenBalance(accounts[0]);
-            console.log('Deposit 1000, before Withdrawal balance of accounts[0] %s', parseWei2Ether(beforeWithdrawalBalance))
-
-            // 16.5. requestWithdrawal
-            await umiTokenFarm.requestWithdrawal(lastDepositIdsOfAccount0, { from: accounts[0] });
-            // 16.6. makeRequestedWithdrawal, 0 - to withdraw all
-            receipt = await umiTokenFarm.makeRequestedWithdrawal(lastDepositIdsOfAccount0, ether('500'), { from: accounts[0] });
-            const timestampWithdrawal = await getBlockTimestamp(receipt);
-            const timePassed = timestampWithdrawal.sub(timestampDeposit);
-
-            // 16.7. withdrawalRequestsDates will be 0
-            const withdrawalRequestsDate = await umiTokenFarm.withdrawalRequestsDates(accounts[0], lastDepositIdsOfAccount0);
-            assert.equal(0, withdrawalRequestsDate)
-            // 16.8. makeRequestedWithdrawal balance will be 500
-            const balances = await umiTokenFarm.balances(accounts[0], lastDepositIdsOfAccount0)
-            assert.equal(parseWei2Ether(balances), 500)
-
-            // 16.9. after Withdrawal balance of accounts[0]
-            let afterWithdrawalBalance =  await umiTokenFarm.getUmiTokenBalance(accounts[0]);
-            console.log('Withdrawal 500 ten days later, after Withdrawal balance of accounts[0] %s', parseWei2Ether(afterWithdrawalBalance))
-        })
-
-        // accounts[2] deposit 1000 ether, and withdraw all after 2 years later
-        it('17th test, makeRequestedWithdrawal withdraw all after 2 years later', async () => {
-            // 17.1. deposit 1000 umiTokenMock to umiTokenFarm contract
-            let receipt = await umiTokenFarm.deposit(ether('1000'), { from: accounts[2] })
-            // 17.2. get timestamp of deposit
-            const timestampDeposit = await getBlockTimestamp(receipt);
-            // increase time for 2 years later
-            await time.increase(TWO_YEARS)
-            // 17.3. deposit success, get lastDepositIds of accounts[2]
-            const lastDepositIdsOfAccount2 = await umiTokenFarm.lastDepositIds(accounts[2])
-
-            // 17.4. before Withdrawal balance of accounts[2]
-            let beforeWithdrawalBalance =  await umiTokenFarm.getUmiTokenBalance(accounts[2]);
-            console.log('Deposit 1000, before Withdrawal balance of accounts[2] %s', parseWei2Ether(beforeWithdrawalBalance))
-
-            // 17.5. requestWithdrawal
-            await umiTokenFarm.requestWithdrawal(lastDepositIdsOfAccount2, { from: accounts[2] });
-            // 17.6. makeRequestedWithdrawal, and withdraw all after 2 years later
-            receipt = await umiTokenFarm.makeRequestedWithdrawal(lastDepositIdsOfAccount2, 0, { from: accounts[2] });
-            const timestampWithdrawal = await getBlockTimestamp(receipt);
-            const timePassed = timestampWithdrawal.sub(timestampDeposit);
-
-            // 17.7. withdrawalRequestsDates will be 0
-            const withdrawalRequestsDate = await umiTokenFarm.withdrawalRequestsDates(accounts[2], lastDepositIdsOfAccount2);
-            assert.equal(0, withdrawalRequestsDate)
-            // 17.8. makeRequestedWithdrawal balance will be 0
-            const balances = await umiTokenFarm.balances(accounts[2], lastDepositIdsOfAccount2)
-            assert.equal(parseWei2Ether(balances), 0)
-
-            // 17.9. after Withdrawal balance of accounts[2]
-            let afterWithdrawalBalance =  await umiTokenFarm.getUmiTokenBalance(accounts[2]);
-            console.log('Withdrawal 1000 2 years later, after Withdrawal balance of accounts[2] %s', parseWei2Ether(afterWithdrawalBalance))
-        })
-
-        it('18th test, makeRequestedWithdrawal should fail if not requested', async () => {
-            let makeRequestedWithdrawalFailed = false;
-            try {
-                await umiTokenFarm.makeRequestedWithdrawal(lastDepositIdsOfAccount0, 0, { from: accounts[0] });
-                assert.fail('request withdrawal incorrect, with wrong deposit id')
-            } catch (e) {
-                makeRequestedWithdrawalFailed = true;
-                assert.equal(makeRequestedWithdrawalFailed, true, `withdrawal wasn't requested`);
-            }
-          });
-
-    })
-
     // test getTotalBalanceOfUser
     describe('Test getTotalBalanceOfUser', async () => {
         // total balance of accounts[0] will be 3500, total balance of accounts[1] will be 200
         it('19th test, getTotalBalanceOfUser correct', async () => {
             let totalBalance = await umiTokenFarm.getTotalBalanceOfUser(accounts[0])
-            assert.equal(3500, parseWei2Ether(totalBalance))
+            assert.equal(3000, parseWei2Ether(totalBalance))
             totalBalance = await umiTokenFarm.getTotalBalanceOfUser(accounts[1])
-            assert.equal(200, parseWei2Ether(totalBalance))
+            assert.equal(700, parseWei2Ether(totalBalance))
             totalBalance = await umiTokenFarm.getTotalBalanceOfUser(accounts[2])
             assert.equal(0, parseWei2Ether(totalBalance))
         })

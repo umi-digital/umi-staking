@@ -183,27 +183,48 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
      * Note: each call updates the date of the request so don't call this method twice during the lock.
      *
      * @param _depositId User's unique deposit ID.
+     * @param _amount The amount to withdraw.
      */
-    function requestWithdrawal(uint256 _depositId) external {
+    function requestWithdrawal(uint256 _depositId, uint256 _amount) external {
         require(
             _depositId > 0 && _depositId <= lastDepositIds[msg.sender],
             "requestWithdrawal with wrong deposit id"
         );
+        require(_amount > 0, "equestWithdrawal amount should be more than 0");
         withdrawalRequestsDates[msg.sender][_depositId] = _now();
         emit WithdrawalRequested(msg.sender, _depositId);
+        // make Withdrawal
+        makeRequestedWithdrawal(_depositId, _amount);
+    }
+
+    /**
+     * This method is used to request a withdrawal, and withdrawal all the amount of deposit.
+     * It sets the date of the request.
+     *
+     * Note: each call updates the date of the request so don't call this method twice during the lock.
+     *
+     * @param _depositId User's unique deposit ID.
+     */
+    function requestWithdrawalAll(uint256 _depositId) external {
+        require(
+            _depositId > 0 && _depositId <= lastDepositIds[msg.sender],
+            "requestWithdrawalAll with wrong deposit id"
+        );
+        withdrawalRequestsDates[msg.sender][_depositId] = _now();
+        emit WithdrawalRequested(msg.sender, _depositId);
+        // make Withdrawal
+        makeRequestedWithdrawal(_depositId, 0);
     }
 
     /**
      * This method is used to make a requested withdrawal.
      * It calls the internal "_withdraw" method and resets the date of the request.
      *
-     * Note: Sender should call requestWithdrawal first.
-     *
      * @param _depositId User's unique deposit ID.
      * @param _amount The amount to withdraw (0 - to withdraw all).
      */
     function makeRequestedWithdrawal(uint256 _depositId, uint256 _amount)
-        external
+        internal
     {
         uint256 requestDate = withdrawalRequestsDates[msg.sender][_depositId];
         require(requestDate > 0, "withdrawal wasn't requested");
