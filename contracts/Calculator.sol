@@ -21,7 +21,7 @@ library Calculator {
         uint256 principal,
         uint256 n,
         uint256 apy
-    ) public pure returns (uint256 amount) {
+   ) internal pure returns (uint256 amount) {
         int128 div = ABDKMath64x64.divu(apy, 36500); // day rate
         int128 sum = ABDKMath64x64.add(ABDKMath64x64.fromInt(1), div);
         int128 pow = ABDKMath64x64.pow(sum, n);

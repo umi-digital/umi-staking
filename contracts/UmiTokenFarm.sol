@@ -20,6 +20,7 @@ import "./Calculator.sol";
 contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
     using Address for address;
     using SafeMath for uint256;
+    using Calculator for uint256;
 
     /**
      * Emitted when a user deposits tokens.

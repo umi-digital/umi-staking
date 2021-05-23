@@ -3,10 +3,12 @@ pragma solidity ^0.8.3;
 
 import "../Calculator.sol";
 
+
 /**
  * Test rewards calculate
  */
 contract TestRewards {
+    using Calculator for uint256;
 
     /**
      * calculate rewards
