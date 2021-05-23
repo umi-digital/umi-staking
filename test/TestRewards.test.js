@@ -103,6 +103,18 @@ contract('TestRewards', async (accounts) => {
 
             // assert.equal(BN(res).toString(), parseInt(resJs).toString())
         })
+
+        it('6th test, 100 ether 2 years later', async() => {
+            const principal = ether('100')
+            const days = 730
+            let res = await testRewards.calculateRewards(principal, days, APY)
+            console.log('6th test calculate rewards by solidity res wei=%s', BN(res).toString());
+
+            let resJs = calculateRewardsByJs(principal, days, APY)
+            console.log('6th test calculate rewards by js     resJs wei=%s', parseInt(resJs))
+
+            // assert.equal(BN(res).toString(), parseInt(resJs).toString())
+        })
     })
 
 })
