@@ -9,6 +9,8 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "./ERC20Interface.sol";
 import "./Calculator.sol";
+import "./utils/DepositPausable.sol";
+import "./utils/WithdrawalPausable.sol";
 
 /**
  * Umi token farm
@@ -17,10 +19,22 @@ import "./Calculator.sol";
  * 2nd. Rewards are paid in more $UMI
  * 3rd. Rewards can be collected anytime
  */
-contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
+contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, DepositPausable, WithdrawalPausable {
     using Address for address;
     using SafeMath for uint256;
     using Calculator for uint256;
+
+    /**
+     * Emitted when a user store farming rewards.
+     * @param sender User address.
+     * @param amount Current store amount.
+     * @param storeTimestamp The time when store farming rewards.
+     */
+    event FarmRewardStored(
+        address indexed sender,
+        uint256 amount,
+        uint256 storeTimestamp
+    );
 
     /**
      * Emitted when a user deposits tokens.
@@ -81,6 +95,8 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
     mapping(address => uint256) public lastDepositIds;
     // The total staked amount
     uint256 public totalStaked;
+    // The farming rewards of users(address => total amount)
+    mapping(address => uint256) public farmRewards;
 
     // Variable that prevents _deposit method from being called 2 times
     bool private locked;
@@ -98,6 +114,22 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
             "_tokenAddress is not a contract address"
         );
         umiToken = ERC20Interface(_tokenAddress);
+    }
+
+    /**
+     * Store farming rewards to UmiTokenFarm contract, in order to pay the user interest later.
+     *
+     * Note: _amount should be more than 0
+     */
+    function storeFarmingRewards(uint256 _amount) external nonReentrant {
+        require(_amount > 0, "storeFarmingRewards _amount should be more than 0");
+        farmRewards[msg.sender] += _amount;
+        require(
+            umiToken.transferFrom(msg.sender, address(this), _amount),
+            "storeFarmingRewards transferFrom failed"
+        );
+        // send event
+        emit FarmRewardStored(msg.sender, _amount, _now());
     }
 
     /**
@@ -126,7 +158,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
      * It generates a new deposit ID and calls another internal "deposit" method. See its description.
      * @param _amount The amount to deposit.
      */
-    function deposit(uint256 _amount) public {
+    function deposit(uint256 _amount) public whenNotPausedDeposit {
         deposit(++lastDepositIds[msg.sender], _amount);
     }
 
@@ -183,14 +215,14 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
      * Note: each call updates the date of the request so don't call this method twice during the lock.
      *
      * @param _depositId User's unique deposit ID.
-     * @param _amount The amount to withdraw.
+     * @param _amount The amount to withdraw, 
      */
-    function requestWithdrawal(uint256 _depositId, uint256 _amount) external {
+    function requestWithdrawal(uint256 _depositId, uint256 _amount) external whenNotPausedWithdrawal {
         require(
             _depositId > 0 && _depositId <= lastDepositIds[msg.sender],
             "requestWithdrawal with wrong deposit id"
         );
-        require(_amount > 0, "equestWithdrawal amount should be more than 0");
+        require(_amount > 0, "requestWithdrawal amount should be more than 0");
         withdrawalRequestsDates[msg.sender][_depositId] = _now();
         emit WithdrawalRequested(msg.sender, _depositId);
         // make Withdrawal
@@ -205,7 +237,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
      *
      * @param _depositId User's unique deposit ID.
      */
-    function requestWithdrawalAll(uint256 _depositId) external {
+    function requestWithdrawalAll(uint256 _depositId) external whenNotPausedWithdrawal {
         require(
             _depositId > 0 && _depositId <= lastDepositIds[msg.sender],
             "requestWithdrawalAll with wrong deposit id"
@@ -311,7 +343,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
     /**
      * Get total balance of user.
      *
-     * Note: Iter balances mapping to get total balance of address
+     * Note: Iter balances mapping to get total balance of address.
      *
      * @param _address User's address or Contract's address
      * @return Returns current _address's total balance
@@ -350,4 +382,49 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard {
     function _setLocked(bool _locked) internal {
         locked = _locked;
     }
+
+    /**
+     * Pauses all token deposit.
+     * 
+     * See {DepositPausable-_pauseDeposit}.
+     * 
+     * Requirements: the caller must be the owner.
+     */
+    function pauseDeposit() public onlyOwner {
+        _pauseDeposit();
+    }
+
+    /**
+     * Unpauses all token deposit.
+     * 
+     * See {DepositPausable-_unpauseDeposit}.
+     * 
+     * Requirements: the caller must be the owner.
+     */
+    function unpauseDeposit() public onlyOwner {
+        _unpauseDeposit();
+    }
+
+    /**
+     * Pauses all token withdrawal.
+     * 
+     * See {WithdrawalPausable-_pauseWithdrawal}.
+     * 
+     * Requirements: the caller must be the owner.
+     */
+    function pauseWithdrawal() public onlyOwner {
+        _pauseWithdrawal();
+    }
+
+    /**
+     * Unpauses all token withdrawal.
+     * 
+     * See {WithdrawalPausable-_unpauseWithdrawal}.
+     * 
+     * Requirements: the caller must be the owner.
+     */
+    function unpauseWithdrawal() public onlyOwner {
+        _unpauseWithdrawal();
+    }
+
 }

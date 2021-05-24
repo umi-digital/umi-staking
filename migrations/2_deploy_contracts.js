@@ -12,12 +12,8 @@ module.exports = async function(deployer, network, accounts) {
         await deployer.deploy(UmiERC20)
         const umiERC20 = await UmiERC20.deployed()
         umiTokenAddress = umiERC20.address
-        console.log('Not on mainnet, UmiTokenMock deployed to %s', umiTokenAddress);
     }
 
     // deploy UmiTokenFarm
     await deployer.deploy(UmiTokenFarm, umiTokenAddress)
-    const umiTokenFarm = await UmiTokenFarm.deployed()
-    console.log('UmiTokenFarm deploy to ' + umiTokenFarm.address)
-
 };

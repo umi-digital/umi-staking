@@ -43,7 +43,6 @@ contract('UmiTokenFarm', async (accounts) => {
         await umiTokenMock.transfer(accounts[1], ether('2000000000'), { from: accounts[0] })
         // transfer 1000000000 UmiTOken to account[2]
         await umiTokenMock.transfer(accounts[2], ether('1000000000'), { from: accounts[0] })
-        // await umiTokenMock.transfer(umiTokenFarm.address, ether('1000000000'), { from: accounts[0] })
     })
 
     // test constructor
@@ -79,6 +78,52 @@ contract('UmiTokenFarm', async (accounts) => {
         })
     })
 
+    // test storeFarmingRewards, in order to pay the user rewards later 
+    describe('Test storeFarmingRewards', async () => {
+
+        before(async () => {
+            // account[0] approve 10000 tokens to UmiTokenFarm
+            await umiTokenMock.approve(umiTokenFarm.address, ether('10000'), { from: accounts[0] })
+            // account[1] approve 10000 tokens to UmiTokenFarm
+            await umiTokenMock.approve(umiTokenFarm.address, ether('10000'), { from: accounts[2] })
+        })
+
+        it('storeFarmingRewards and UmiToken balance of the farming contract correct', async () => {
+            // 1. get UmiTokenFarm UmiToken balance
+            let umiTokenFarmBalance = await umiTokenFarm.getUmiTokenBalance(umiTokenFarm.address)
+            assert.equal(0, parseWei2Ether(umiTokenFarmBalance))
+            // 2. account[0] store 1000 to UmiTokenFarm, balance will be 1000
+            await umiTokenFarm.storeFarmingRewards(ether('1000'), {from: accounts[0]});
+            umiTokenFarmBalance = await umiTokenFarm.getUmiTokenBalance(umiTokenFarm.address)
+            assert.equal(1000, parseWei2Ether(umiTokenFarmBalance))
+            // 3. accounts[2] store 1000 to UmiTokenFarm, balance will be 2000
+            await umiTokenFarm.storeFarmingRewards(ether('1000'), {from: accounts[2]});
+            umiTokenFarmBalance = await umiTokenFarm.getUmiTokenBalance(umiTokenFarm.address)
+            assert.equal(2000, parseWei2Ether(umiTokenFarmBalance))
+
+            // 4. get farming rewards by address, accounts[0] store 1000
+            let account0FarmingRewards = await umiTokenFarm.farmRewards(accounts[0])
+            assert.equal(1000, parseWei2Ether(account0FarmingRewards))
+
+            // 5. account[0] store another 1000 to UmiTokenFarm, balance will be 2000
+            await umiTokenFarm.storeFarmingRewards(ether('1000'), {from: accounts[0]});
+            account0FarmingRewards = await umiTokenFarm.farmRewards(accounts[0])
+            assert.equal(2000, parseWei2Ether(account0FarmingRewards))
+        })
+
+        it('storeFarmingRewards incorrect, amount should be more than 0', async() => {
+            let storeFarmingRewardsFailed = false;
+            try {
+                await umiTokenFarm.storeFarmingRewards(0, {from: accounts[0]}); 
+                assert.fail('storeFarmingRewards incorrect, amount should be more than 0')
+            } catch (e) {
+                // console.log('storeFarmingRewards 0 error %s', e)
+                storeFarmingRewardsFailed = true;
+                assert.equal(storeFarmingRewardsFailed, true, 'storeFarmingRewards incorrect, amount should be more than 0');
+            }
+        })
+    })
+
     // test APY
     describe('Test setAPY', async () => {
         it('5th test, owner can set APY', async () => {
@@ -103,12 +148,9 @@ contract('UmiTokenFarm', async (accounts) => {
             let banlance0 = await umiTokenFarm.getUmiTokenBalance(accounts[0])
             let banlance1 = await umiTokenFarm.getUmiTokenBalance(accounts[1])
             let banlance2 = await umiTokenFarm.getUmiTokenBalance(accounts[2])
-            assert.equal(banlance0, ether('30000000000'))
+            assert.equal(banlance0, ether('29999998000'))
             assert.equal(banlance1, ether('2000000000'))
-            assert.equal(banlance2, ether('1000000000'))
-
-            const umiTokenBalanceOfContract = await umiTokenFarm.getUmiTokenBalance(umiTokenFarm.address)
-            assert.equal(umiTokenBalanceOfContract, 0)
+            assert.equal(banlance2, ether('999999000'))
         })
     })
 
@@ -262,8 +304,8 @@ contract('UmiTokenFarm', async (accounts) => {
             const lastDepositIdsOfAccount0 = await umiTokenFarm.lastDepositIds(accounts[0])
 
             // 13.4. before Withdrawal balance of accounts[0]
-            let beforeWithdrawalBalance =  await umiTokenFarm.getUmiTokenBalance(accounts[0]);
-            console.log('Deposit 1000, before Withdrawal balance of accounts[0] %s', parseWei2Ether(beforeWithdrawalBalance))
+            let beforeWithdrawalBalance = await umiTokenFarm.getUmiTokenBalance(accounts[0]);
+            console.log('13th test, Deposit 1000, before Withdrawal balance of accounts[0] %s', parseWei2Ether(beforeWithdrawalBalance))
 
             // 13.5. requestWithdrawal
             await umiTokenFarm.requestWithdrawal(lastDepositIdsOfAccount0, ether('1000'), { from: accounts[0] });
@@ -276,8 +318,8 @@ contract('UmiTokenFarm', async (accounts) => {
             assert.equal(parseWei2Ether(balances), 0)
 
             // 13.8. after Withdrawal balance of accounts[0]
-            let afterWithdrawalBalance =  await umiTokenFarm.getUmiTokenBalance(accounts[0]);
-            console.log('Withdrawal 1000 ten days later, after Withdrawal balance of accounts[0] %s', parseWei2Ether(afterWithdrawalBalance))
+            let afterWithdrawalBalance = await umiTokenFarm.getUmiTokenBalance(accounts[0]);
+            console.log('13th test, Withdrawal 1000 ten days later, after Withdrawal balance of accounts[0] %s, total with rewards %s', parseWei2Ether(afterWithdrawalBalance), parseWei2Ether(afterWithdrawalBalance) - parseWei2Ether(beforeWithdrawalBalance))
         })
 
         it('14th test, requestWithdrawal correct, deposit 1000 then withdrawal 500 ', async () => {
@@ -291,8 +333,8 @@ contract('UmiTokenFarm', async (accounts) => {
             const lastDepositIdsOfAccount1 = await umiTokenFarm.lastDepositIds(accounts[1])
 
             // 14.4. before Withdrawal balance of accounts[1]
-            let beforeWithdrawalBalance =  await umiTokenFarm.getUmiTokenBalance(accounts[1]);
-            console.log('Deposit 1000, before Withdrawal balance of accounts[1] %s', parseWei2Ether(beforeWithdrawalBalance))
+            let beforeWithdrawalBalance = await umiTokenFarm.getUmiTokenBalance(accounts[1]);
+            console.log('14 test, Deposit 1000, before Withdrawal balance of accounts[1] %s', parseWei2Ether(beforeWithdrawalBalance))
 
             // 14.5. requestWithdrawal
             await umiTokenFarm.requestWithdrawal(lastDepositIdsOfAccount1, ether('500'), { from: accounts[1] });
@@ -306,8 +348,8 @@ contract('UmiTokenFarm', async (accounts) => {
             assert.equal(parseWei2Ether(balances), 500)
 
             // 14.8. after Withdrawal balance of accounts[1]
-            let afterWithdrawalBalance =  await umiTokenFarm.getUmiTokenBalance(accounts[1]);
-            console.log('Withdrawal 500 ten days later, after Withdrawal balance of accounts[1] %s', parseWei2Ether(afterWithdrawalBalance))
+            let afterWithdrawalBalance = await umiTokenFarm.getUmiTokenBalance(accounts[1]);
+            console.log('14 test, Withdrawal 500 ten days later, after Withdrawal balance of accounts[1] %s, total with rewards %s', parseWei2Ether(afterWithdrawalBalance), parseWei2Ether(afterWithdrawalBalance) - parseWei2Ether(beforeWithdrawalBalance))
         })
 
         // accounts[2] deposit 1000 ether, and withdraw all after 2 years later
@@ -322,8 +364,8 @@ contract('UmiTokenFarm', async (accounts) => {
             const lastDepositIdsOfAccount2 = await umiTokenFarm.lastDepositIds(accounts[2])
 
             // 15.4. before Withdrawal balance of accounts[2]
-            let beforeWithdrawalBalance =  await umiTokenFarm.getUmiTokenBalance(accounts[2]);
-            console.log('Deposit 1000, before Withdrawal balance of accounts[2] %s', parseWei2Ether(beforeWithdrawalBalance))
+            let beforeWithdrawalBalance = await umiTokenFarm.getUmiTokenBalance(accounts[2]);
+            console.log('15th test, Deposit 1000, before Withdrawal balance of accounts[2] %s', parseWei2Ether(beforeWithdrawalBalance))
 
             // 15.5. requestWithdrawal
             await umiTokenFarm.requestWithdrawal(lastDepositIdsOfAccount2, ether('1000'), { from: accounts[2] });
@@ -336,33 +378,266 @@ contract('UmiTokenFarm', async (accounts) => {
             assert.equal(parseWei2Ether(balances), 0)
 
             // 15.8. after Withdrawal balance of accounts[2]
-            let afterWithdrawalBalance =  await umiTokenFarm.getUmiTokenBalance(accounts[2]);
-            console.log('Withdrawal 1000 2 years later, after Withdrawal balance of accounts[2] %s', parseWei2Ether(afterWithdrawalBalance))
+            let afterWithdrawalBalance = await umiTokenFarm.getUmiTokenBalance(accounts[2]);
+            console.log('15th test, Withdrawal 1000 2 years later, after Withdrawal balance of accounts[2] %s, total with rewards %s', parseWei2Ether(afterWithdrawalBalance), parseWei2Ether(afterWithdrawalBalance) - parseWei2Ether(beforeWithdrawalBalance))
         })
 
         it('16th test, request withdrawal incorrect, with wrong deposit id', async () => {
             let requestWithdrawalFailed = false;
             try {
-                await umiTokenFarm.requestWithdrawal(3, { from: accounts[0] })
+                await umiTokenFarm.requestWithdrawal(10, ether('1000'), { from: accounts[0] })
                 assert.fail('request withdrawal incorrect, with wrong deposit id')
             } catch (e) {
+                // console.log('16th e=%s', e)
                 requestWithdrawalFailed = true;
                 assert.equal(requestWithdrawalFailed, true, 'request withdrawal incorrect, with wrong deposit id');
             }
         })
+
+        it('17th test, request withdrawal incorrect, amount should be more than 0', async () => {
+            let requestWithdrawalFailed = false;
+            const lastDepositIdsOfAccount1 = await umiTokenFarm.lastDepositIds(accounts[1])
+            try {
+                await umiTokenFarm.requestWithdrawal(lastDepositIdsOfAccount1, 0, { from: accounts[1] })
+                assert.fail('request withdrawal incorrect, amount should be more than 0')
+            } catch (e) {
+                // console.log('17th e=%s', e)
+                requestWithdrawalFailed = true;
+                assert.equal(requestWithdrawalFailed, true, 'request withdrawal incorrect, amount should be more than 0');
+            }
+        })
+
+        it('18th test, _withdraw insufficient funds', async () => {
+            // 18.1. deposit 1000 umiTokenMock to umiTokenFarm contract
+            let receipt = await umiTokenFarm.deposit(ether('1000'), { from: accounts[2] })
+            // 18.2. get timestamp of deposit
+            const timestampDeposit = await getBlockTimestamp(receipt);
+            // increase time for 2 years later
+            await time.increase(TWO_YEARS)
+            // 18.3. deposit success, get lastDepositIds of accounts[2]
+            const lastDepositIdsOfAccount2 = await umiTokenFarm.lastDepositIds(accounts[2])
+
+            let requestWithdrawalFailed = false;
+            try {
+                await umiTokenFarm.requestWithdrawal(lastDepositIdsOfAccount2, ether('1001'), { from: accounts[2] })
+                assert.fail('request withdrawal incorrect, _withdraw insufficient funds')
+            } catch (e) {
+                // console.log('18th e=%s', e)
+                requestWithdrawalFailed = true;
+                assert.equal(requestWithdrawalFailed, true, 'request withdrawal incorrect, _withdraw insufficient funds');
+            }
+        })
+    })
+
+    // test requestWithdrawalAll
+    describe('Test requestWithdrawalAll', async () => {
+        // before deposit, owner should approve UmiTokenFarm contract
+        before(async () => {
+            // account[0] approve 10000 tokens to UmiTokenFarm
+            await umiTokenMock.approve(umiTokenFarm.address, ether('10000'), { from: accounts[0] })
+        })
+
+        it('19th test, requestWithdrawalAll correct', async () => {
+            // 19.1. deposit 1000 umiTokenMock to umiTokenFarm contract
+            let receipt = await umiTokenFarm.deposit(ether('1000'), { from: accounts[0] })
+            // 19.2. get timestamp of deposit
+            const timestampDeposit = await getBlockTimestamp(receipt);
+            // increase time for ten days later
+            await time.increase(TEN_DAYS)
+            // 19.3. deposit success, get lastDepositIds of accounts[0]
+            const lastDepositIdsOfAccount0 = await umiTokenFarm.lastDepositIds(accounts[0])
+
+            // 19.4. before Withdrawal balance of accounts[0]
+            let beforeWithdrawalBalance = await umiTokenFarm.getUmiTokenBalance(accounts[0]);
+            console.log('19th test, Deposit 1000, before Withdrawal balance of accounts[0] %s', parseWei2Ether(beforeWithdrawalBalance))
+
+            // 19.5. requestWithdrawalAll
+            await umiTokenFarm.requestWithdrawalAll(lastDepositIdsOfAccount0, { from: accounts[0] });
+
+            // 19.6. withdrawalRequestsDates will be 0
+            const withdrawalRequestsDate = await umiTokenFarm.withdrawalRequestsDates(accounts[0], lastDepositIdsOfAccount0);
+            assert.equal(0, withdrawalRequestsDate)
+            // 19.7. balance will be 0
+            const balances = await umiTokenFarm.balances(accounts[0], lastDepositIdsOfAccount0)
+            assert.equal(parseWei2Ether(balances), 0)
+
+            // 19.8. after Withdrawal balance of accounts[0]
+            let afterWithdrawalBalance = await umiTokenFarm.getUmiTokenBalance(accounts[0]);
+            console.log('19th test, Withdrawal 1000 ten days later, after Withdrawal balance of accounts[0] %s, total with rewards %s', parseWei2Ether(afterWithdrawalBalance), parseWei2Ether(afterWithdrawalBalance) - parseWei2Ether(beforeWithdrawalBalance))
+        })
+
+        it('20th test, requestwithdrawalAll incorrect, with wrong deposit id', async () => {
+            let requestWithdrawalFailed = false;
+            try {
+                await umiTokenFarm.requestWithdrawalAll(10, { from: accounts[0] })
+                assert.fail('requestwithdrawalAll incorrect, with wrong deposit id')
+            } catch (e) {
+                // console.log('20th e=%s', e)
+                requestWithdrawalFailed = true;
+                assert.equal(requestWithdrawalFailed, true, 'requestwithdrawalAll incorrect, with wrong deposit id');
+            }
+        })
+
     })
 
     // test getTotalBalanceOfUser
     describe('Test getTotalBalanceOfUser', async () => {
         // total balance of accounts[0] will be 3500, total balance of accounts[1] will be 200
-        it('19th test, getTotalBalanceOfUser correct', async () => {
+        it('21th test, getTotalBalanceOfUser correct', async () => {
             let totalBalance = await umiTokenFarm.getTotalBalanceOfUser(accounts[0])
             assert.equal(3000, parseWei2Ether(totalBalance))
             totalBalance = await umiTokenFarm.getTotalBalanceOfUser(accounts[1])
             assert.equal(700, parseWei2Ether(totalBalance))
             totalBalance = await umiTokenFarm.getTotalBalanceOfUser(accounts[2])
-            assert.equal(0, parseWei2Ether(totalBalance))
+            assert.equal(1000, parseWei2Ether(totalBalance))
         })
+    })
+
+    // test pauseDeposit and unpauseDeposit
+    describe('Test pauseDeposit and unpauseDeposit', async () => {
+        // before deposit, owner should approve UmiTokenFarm contract
+        before(async () => {
+            // account[0] approve 10000 tokens to UmiTokenFarm
+            await umiTokenMock.approve(umiTokenFarm.address, ether('10000'), { from: accounts[0] })
+        })
+
+        it('22th test, pauseDeposit,unpauseDeposit incorrect, only owner can call them', async () => {
+            let pauseDepositFailed = false;
+            try {
+                await umiTokenFarm.pauseDeposit({ from: accounts[1] });
+                assert.fail('pauseDeposit incorrect, only owner can call pauseDeposit')
+            } catch (e) {
+                // console.log('pauseDepositFailed e=%s', e)
+                pauseDepositFailed = true;
+                assert.equal(pauseDepositFailed, true, 'pauseDeposit incorrect, only owner can call pauseDeposit');
+            }
+
+            let unpauseDepositFailed = false;
+            try {
+                await umiTokenFarm.unpauseDeposit({ from: accounts[1] });
+                assert.fail('unpauseDeposit incorrect, only owner can call unpauseDeposit')
+            } catch (e) {
+                // console.log('unpauseDepositFailed e=%s', e)
+                unpauseDepositFailed = true;
+                assert.equal(unpauseDepositFailed, true, 'unpauseDeposit incorrect, only owner can call unpauseDeposit');
+            }
+        })
+
+        it('23th test, deposit will be failed when paused, and will be success when unpaused', async () => {
+            // 1. before deposit, pauseDeposit
+            await umiTokenFarm.pauseDeposit({ from: accounts[0] });
+            // check paused state
+            let pausedState = await umiTokenFarm.depositPaused()
+            // console.log('pauseDeposit pausedState %s', pausedState)
+            assert.equal(pausedState, true)
+            let depositFailed = false;
+            try {
+                // 2. deposit 1000 umiTokenMock to umiTokenFarm contract, it will fail
+                await umiTokenFarm.deposit(ether('1000'), { from: accounts[0] })
+                assert.fail('deposit incorrect, paused')
+            } catch (e) {
+                depositFailed = true;
+                assert.equal(depositFailed, true, 'deposit incorrect, paused');
+            }
+            // 3. check accounts[0]'s balance
+            let totalBalance = await umiTokenFarm.getTotalBalanceOfUser(accounts[0])
+            assert.equal(3000, parseWei2Ether(totalBalance))
+            // 4. unpauseDeposit, and deposit
+            await umiTokenFarm.unpauseDeposit({ from: accounts[0] });
+            // check paused state
+            pausedState = await umiTokenFarm.depositPaused()
+            // console.log('unpauseDeposit pausedState %s', pausedState)
+            assert.equal(pausedState, false)
+            // 5. deposit again
+            await umiTokenFarm.deposit(ether('1000'), { from: accounts[0] })
+            // 6. check accounts[0]'s balance again
+            totalBalance = await umiTokenFarm.getTotalBalanceOfUser(accounts[0])
+            assert.equal(4000, parseWei2Ether(totalBalance))
+        })
+    })
+
+    // test pauseWithdrawal and unpauseWithdrawal
+    describe('Test pauseWithdrawal and unpauseWithdrawal', async () => {
+        // before deposit, owner should approve UmiTokenFarm contract
+        before(async () => {
+            // account[0] approve 10000 tokens to UmiTokenFarm
+            await umiTokenMock.approve(umiTokenFarm.address, ether('10000'), { from: accounts[0] })
+        })
+
+        it('24th test, pauseWithdrawal and unpauseWithdrawal, only owner can call them', async () => {
+            let pauseWithdrawalFailed = false;
+            try {
+                await umiTokenFarm.pauseWithdrawal({ from: accounts[1] });
+                assert.fail('pauseWithdrawal incorrect, only owner can call pauseWithdrawal')
+            } catch (e) {
+                // console.log('pauseWithdrawal e=%s', e)
+                pauseWithdrawalFailed = true;
+                assert.equal(pauseWithdrawalFailed, true, 'pauseWithdrawal incorrect, only owner can call pauseWithdrawal');
+            }
+
+            let unpauseWithdrawalFailed = false;
+            try {
+                await umiTokenFarm.unpauseWithdrawal({ from: accounts[1] });
+                assert.fail('unpauseWithdrawal incorrect, only owner can call unpauseWithdrawal')
+            } catch (e) {
+                // console.log('unpauseWithdrawal e=%s', e)
+                unpauseWithdrawalFailed = true;
+                assert.equal(unpauseWithdrawalFailed, true, 'unpauseWithdrawal incorrect, only owner can call unpauseWithdrawal');
+            }
+        })
+
+        it('25th test, Withdrawal will be failed when paused, and will be success when unpaused', async () => {
+            // 1. before deposit, owner should approve UmiTokenFarm contract
+            before(async () => {
+                // account[0] approve 10000 tokens to UmiTokenFarm
+                await umiTokenMock.approve(umiTokenFarm.address, ether('10000'), { from: accounts[0] })
+            })
+
+            // 2. deposit 1000 umiTokenMock to umiTokenFarm contract, it will fail
+            await umiTokenFarm.deposit(ether('1000'), { from: accounts[0] })
+
+            // 3. deposit success, get lastDepositIds of accounts[0]
+            const lastDepositIdsOfAccount0 = await umiTokenFarm.lastDepositIds(accounts[0])
+
+            // 4. before deposit, pauseWithdrawal
+            await umiTokenFarm.pauseWithdrawal({ from: accounts[0] });
+
+            // check paused state
+            let pausedState = await umiTokenFarm.withdrawalPaused()
+            // console.log('pauseWithdrawal pausedState %s', pausedState)
+            assert.equal(pausedState, true)
+
+            // 5. requestWithdrawal, it will fail
+            let withdrawalFailed = false;
+            try {
+                // deposit 1000 umiTokenMock to umiTokenFarm contract, it will fail
+                await umiTokenFarm.requestWithdrawal(lastDepositIdsOfAccount0, ether('1000'), { from: accounts[0] });
+                assert.fail('requestWithdrawal incorrect, paused')
+            } catch (e) {
+                // console.log('Withdrawal will be failed when paused e=%s', e)
+                withdrawalFailed = true;
+                assert.equal(withdrawalFailed, true, 'requestWithdrawal incorrect, paused');
+            }
+            // 6. check accounts[0]'s balance
+            let totalBalance = await umiTokenFarm.getTotalBalanceOfUser(accounts[0])
+            assert.equal(5000, parseWei2Ether(totalBalance))
+
+            // increase time for ten days later
+            await time.increase(TEN_DAYS)
+
+            // 7. unpauseWithdrawal, and withdrawal
+            await umiTokenFarm.unpauseWithdrawal({ from: accounts[0] });
+            // check paused state
+            pausedState = await umiTokenFarm.withdrawalPaused()
+            // console.log('unpauseWithdrawal pausedState %s', pausedState)
+            assert.equal(pausedState, false)
+            // 5. requestWithdrawal again
+            await umiTokenFarm.requestWithdrawal(lastDepositIdsOfAccount0, ether('1000'), { from: accounts[0] });
+            // 6. check accounts[0]'s balance again
+            totalBalance = await umiTokenFarm.getTotalBalanceOfUser(accounts[0])
+            assert.equal(4000, parseWei2Ether(totalBalance))
+        })
+
     })
 
 })
