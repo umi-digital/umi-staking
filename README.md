@@ -197,3 +197,23 @@ Summary
 =======
 > Total deployments:   3
 > Final cost:          0.08014546 ETH
+
+## 8. Mainnet deployment
+
+First, estimate the gas fee, see everything is good to go
+
+truffle migrate --dry-run --reset --network mainnet
+
+Second, real deploy
+
+truffle migrate --reset --network mainnet
+
+## 9. Verify
+
+First, go to etherscan, log in your account, get a verify API key
+
+Second, put the key in .env file
+
+Third, run this command, wait, until you see a "Pass..." message on the console
+
+truffle run verify UmiTokenFarm --network mainnet

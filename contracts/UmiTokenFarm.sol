@@ -121,7 +121,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, DepositPausable, Wit
      *
      * Note: _amount should be more than 0
      */
-    function storeFarmingRewards(uint256 _amount) external nonReentrant {
+    function storeFarmingRewards(uint256 _amount) external onlyOwner nonReentrant {
         require(_amount > 0, "storeFarmingRewards _amount should be more than 0");
         farmRewards[msg.sender] += _amount;
         require(
@@ -199,7 +199,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, DepositPausable, Wit
         address _sender,
         uint256 _id,
         uint256 _amount
-    ) internal nonReentrant {
+    ) internal {
         require(_amount > 0, "deposit amount should be more than 0");
         balances[_sender][_id] = _amount;
         totalStaked = totalStaked.add(_amount);
@@ -217,7 +217,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, DepositPausable, Wit
      * @param _depositId User's unique deposit ID.
      * @param _amount The amount to withdraw, 
      */
-    function requestWithdrawal(uint256 _depositId, uint256 _amount) external whenNotPausedWithdrawal {
+    function requestWithdrawal(uint256 _depositId, uint256 _amount) external whenNotPausedWithdrawal nonReentrant {
         require(
             _depositId > 0 && _depositId <= lastDepositIds[msg.sender],
             "requestWithdrawal with wrong deposit id"
@@ -237,7 +237,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, DepositPausable, Wit
      *
      * @param _depositId User's unique deposit ID.
      */
-    function requestWithdrawalAll(uint256 _depositId) external whenNotPausedWithdrawal {
+    function requestWithdrawalAll(uint256 _depositId) external whenNotPausedWithdrawal nonReentrant {
         require(
             _depositId > 0 && _depositId <= lastDepositIds[msg.sender],
             "requestWithdrawalAll with wrong deposit id"
@@ -274,7 +274,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, DepositPausable, Wit
         address _sender,
         uint256 _id,
         uint256 _amount
-    ) internal nonReentrant {
+    ) internal {
         require(
             _id > 0 && _id <= lastDepositIds[_sender],
             "_withdraw wrong deposit id"

@@ -25,7 +25,7 @@ abstract contract DepositPausable is Context {
      */
     event DepositUnpaused(address account);
 
-    bool private _depositPaused;
+    bool internal _depositPaused;
 
     /**
      * @dev Initializes the deposit in unpaused state.

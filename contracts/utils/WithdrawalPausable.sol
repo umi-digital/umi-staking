@@ -25,7 +25,7 @@ abstract contract WithdrawalPausable is Context {
      */
     event WithdrawalUnpaused(address account);
 
-    bool private _withdrawalPaused;
+    bool internal _withdrawalPaused;
 
     /**
      * @dev Initializes the withdrawal in unpaused state.
