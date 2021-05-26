@@ -88,7 +88,7 @@ contract('UmiTokenFarm', async (accounts) => {
             await umiTokenMock.approve(umiTokenFarm.address, ether('10000'), { from: accounts[2] })
         })
 
-        it('storeFarmingRewards and UmiToken balance of the farming contract correct', async () => {
+        it('storeFarmingRewards and UmiToken balance of the farming contract is correct, only owner can store farming rewards', async () => {
             // 1. get UmiTokenFarm UmiToken balance
             let umiTokenFarmBalance = await umiTokenFarm.getUmiTokenBalance(umiTokenFarm.address)
             assert.equal(0, parseWei2Ether(umiTokenFarmBalance))
@@ -96,10 +96,21 @@ contract('UmiTokenFarm', async (accounts) => {
             await umiTokenFarm.storeFarmingRewards(ether('1000'), {from: accounts[0]});
             umiTokenFarmBalance = await umiTokenFarm.getUmiTokenBalance(umiTokenFarm.address)
             assert.equal(1000, parseWei2Ether(umiTokenFarmBalance))
-            // 3. accounts[2] store 1000 to UmiTokenFarm, balance will be 2000
-            await umiTokenFarm.storeFarmingRewards(ether('1000'), {from: accounts[2]});
+
+            // 3. accounts[2] store 1000 to UmiTokenFarm, the opertion will be fail, because accounts[2] is not the owner
+            let storeFarmingRewardsFailed = false;
+            try {
+                await umiTokenFarm.storeFarmingRewards(ether('1000'), {from: accounts[2]});
+                assert.fail('storeFarmingRewards incorrect, not the owner')
+            } catch (e) {
+                // console.log('storeFarmingRewards error %s', e)
+                storeFarmingRewardsFailed = true;
+                console.log('storeFarmingRewards incorrect, accounts[2] not the owner')
+                assert.equal(storeFarmingRewardsFailed, true, 'storeFarmingRewards incorrect, not the owner');
+            }
+            // store farming rewards fail, balance is still 1000
             umiTokenFarmBalance = await umiTokenFarm.getUmiTokenBalance(umiTokenFarm.address)
-            assert.equal(2000, parseWei2Ether(umiTokenFarmBalance))
+            assert.equal(1000, parseWei2Ether(umiTokenFarmBalance))
 
             // 4. get farming rewards by address, accounts[0] store 1000
             let account0FarmingRewards = await umiTokenFarm.farmRewards(accounts[0])
@@ -150,7 +161,7 @@ contract('UmiTokenFarm', async (accounts) => {
             let banlance2 = await umiTokenFarm.getUmiTokenBalance(accounts[2])
             assert.equal(banlance0, ether('29999998000'))
             assert.equal(banlance1, ether('2000000000'))
-            assert.equal(banlance2, ether('999999000'))
+            assert.equal(banlance2, ether('1000000000'))
         })
     })
 
@@ -593,13 +604,13 @@ contract('UmiTokenFarm', async (accounts) => {
                 await umiTokenMock.approve(umiTokenFarm.address, ether('10000'), { from: accounts[0] })
             })
 
-            // 2. deposit 1000 umiTokenMock to umiTokenFarm contract, it will fail
+            // 2. deposit 1000 umiTokenMock to umiTokenFarm contract
             await umiTokenFarm.deposit(ether('1000'), { from: accounts[0] })
 
             // 3. deposit success, get lastDepositIds of accounts[0]
             const lastDepositIdsOfAccount0 = await umiTokenFarm.lastDepositIds(accounts[0])
 
-            // 4. before deposit, pauseWithdrawal
+            // 4. before Withdrawal, pauseWithdrawal
             await umiTokenFarm.pauseWithdrawal({ from: accounts[0] });
 
             // check paused state
@@ -631,7 +642,7 @@ contract('UmiTokenFarm', async (accounts) => {
             pausedState = await umiTokenFarm.withdrawalPaused()
             // console.log('unpauseWithdrawal pausedState %s', pausedState)
             assert.equal(pausedState, false)
-            // 5. requestWithdrawal again
+            // 5. requestWithdrawal again, it will success
             await umiTokenFarm.requestWithdrawal(lastDepositIdsOfAccount0, ether('1000'), { from: accounts[0] });
             // 6. check accounts[0]'s balance again
             totalBalance = await umiTokenFarm.getTotalBalanceOfUser(accounts[0])
