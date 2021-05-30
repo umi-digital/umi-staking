@@ -2,7 +2,7 @@
 Ethereum based NFT minter, marketplace and DeFi farming project
 
 ## 1. Project overview
-Primary goal of the project and end results; create tangible NFT and DeFi smart contracts where users can connect via their metamask wallet and stake assets, mint NFTs, buy and sell NFTs, collect $UMI farming rewards and NFT airdrops. Help make the UMI platform as interoperable and develop high-quality code that is maintainable, performant and accessible.
+Staking contract for UMI ERC20 token, paying 12% APY for stakers, compound annually
 
 ## 2. Development Environment
 

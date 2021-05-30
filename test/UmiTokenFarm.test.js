@@ -78,8 +78,8 @@ contract('UmiTokenFarm', async (accounts) => {
         })
     })
 
-    // test storeFarmingRewards, in order to pay the user rewards later 
-    describe('Test storeFarmingRewards', async () => {
+    // test fundingContract, in order to pay the user rewards later 
+    describe('Test fundingContract', async () => {
 
         before(async () => {
             // account[0] approve 10000 tokens to UmiTokenFarm
@@ -88,49 +88,49 @@ contract('UmiTokenFarm', async (accounts) => {
             await umiTokenMock.approve(umiTokenFarm.address, ether('10000'), { from: accounts[2] })
         })
 
-        it('storeFarmingRewards and UmiToken balance of the farming contract is correct, only owner can store farming rewards', async () => {
+        it('fundingContract and UmiToken balance of the farming contract is correct, only owner can store farming rewards', async () => {
             // 1. get UmiTokenFarm UmiToken balance
             let umiTokenFarmBalance = await umiTokenFarm.getUmiTokenBalance(umiTokenFarm.address)
             assert.equal(0, parseWei2Ether(umiTokenFarmBalance))
             // 2. account[0] store 1000 to UmiTokenFarm, balance will be 1000
-            await umiTokenFarm.storeFarmingRewards(ether('1000'), {from: accounts[0]});
+            await umiTokenFarm.fundingContract(ether('1000'), {from: accounts[0]});
             umiTokenFarmBalance = await umiTokenFarm.getUmiTokenBalance(umiTokenFarm.address)
             assert.equal(1000, parseWei2Ether(umiTokenFarmBalance))
 
             // 3. accounts[2] store 1000 to UmiTokenFarm, the opertion will be fail, because accounts[2] is not the owner
-            let storeFarmingRewardsFailed = false;
+            let fundingContractFailed = false;
             try {
-                await umiTokenFarm.storeFarmingRewards(ether('1000'), {from: accounts[2]});
-                assert.fail('storeFarmingRewards incorrect, not the owner')
+                await umiTokenFarm.fundingContract(ether('1000'), {from: accounts[2]});
+                assert.fail('fundingContract incorrect, not the owner')
             } catch (e) {
-                // console.log('storeFarmingRewards error %s', e)
-                storeFarmingRewardsFailed = true;
-                console.log('storeFarmingRewards incorrect, accounts[2] not the owner')
-                assert.equal(storeFarmingRewardsFailed, true, 'storeFarmingRewards incorrect, not the owner');
+                // console.log('fundingContract error %s', e)
+                fundingContractFailed = true;
+                console.log('fundingContract incorrect, accounts[2] not the owner')
+                assert.equal(fundingContractFailed, true, 'fundingContract incorrect, not the owner');
             }
             // store farming rewards fail, balance is still 1000
             umiTokenFarmBalance = await umiTokenFarm.getUmiTokenBalance(umiTokenFarm.address)
             assert.equal(1000, parseWei2Ether(umiTokenFarmBalance))
 
             // 4. get farming rewards by address, accounts[0] store 1000
-            let account0FarmingRewards = await umiTokenFarm.farmRewards(accounts[0])
+            let account0FarmingRewards = await umiTokenFarm.funding(accounts[0])
             assert.equal(1000, parseWei2Ether(account0FarmingRewards))
 
             // 5. account[0] store another 1000 to UmiTokenFarm, balance will be 2000
-            await umiTokenFarm.storeFarmingRewards(ether('1000'), {from: accounts[0]});
-            account0FarmingRewards = await umiTokenFarm.farmRewards(accounts[0])
+            await umiTokenFarm.fundingContract(ether('1000'), {from: accounts[0]});
+            account0FarmingRewards = await umiTokenFarm.funding(accounts[0])
             assert.equal(2000, parseWei2Ether(account0FarmingRewards))
         })
 
-        it('storeFarmingRewards incorrect, amount should be more than 0', async() => {
-            let storeFarmingRewardsFailed = false;
+        it('fundingContract incorrect, amount should be more than 0', async() => {
+            let fundingContractFailed = false;
             try {
-                await umiTokenFarm.storeFarmingRewards(0, {from: accounts[0]}); 
-                assert.fail('storeFarmingRewards incorrect, amount should be more than 0')
+                await umiTokenFarm.fundingContract(0, {from: accounts[0]}); 
+                assert.fail('fundingContract incorrect, amount should be more than 0')
             } catch (e) {
-                // console.log('storeFarmingRewards 0 error %s', e)
-                storeFarmingRewardsFailed = true;
-                assert.equal(storeFarmingRewardsFailed, true, 'storeFarmingRewards incorrect, amount should be more than 0');
+                // console.log('fundingContract 0 error %s', e)
+                fundingContractFailed = true;
+                assert.equal(fundingContractFailed, true, 'fundingContract incorrect, amount should be more than 0');
             }
         })
     })

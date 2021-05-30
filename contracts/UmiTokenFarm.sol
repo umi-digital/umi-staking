@@ -30,7 +30,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, DepositPausable, Wit
      * @param amount Current store amount.
      * @param storeTimestamp The time when store farming rewards.
      */
-    event FarmRewardStored(
+    event ContractFunded(
         address indexed sender,
         uint256 amount,
         uint256 storeTimestamp
@@ -96,7 +96,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, DepositPausable, Wit
     // The total staked amount
     uint256 public totalStaked;
     // The farming rewards of users(address => total amount)
-    mapping(address => uint256) public farmRewards;
+    mapping(address => uint256) public funding;
 
     // Variable that prevents _deposit method from being called 2 times
     bool private locked;
@@ -121,15 +121,15 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, DepositPausable, Wit
      *
      * Note: _amount should be more than 0
      */
-    function storeFarmingRewards(uint256 _amount) external onlyOwner nonReentrant {
-        require(_amount > 0, "storeFarmingRewards _amount should be more than 0");
-        farmRewards[msg.sender] += _amount;
+    function fundingContract(uint256 _amount) external nonReentrant {
+        require(_amount > 0, "fundingContract _amount should be more than 0");
+        funding[msg.sender] += _amount;
         require(
             umiToken.transferFrom(msg.sender, address(this), _amount),
-            "storeFarmingRewards transferFrom failed"
+            "fundingContract transferFrom failed"
         );
         // send event
-        emit FarmRewardStored(msg.sender, _amount, _now());
+        emit ContractFunded(msg.sender, _amount, _now());
     }
 
     /**
