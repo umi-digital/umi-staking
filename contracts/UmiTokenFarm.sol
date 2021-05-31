@@ -7,10 +7,9 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 import "./ERC20Interface.sol";
 import "./Calculator.sol";
-import "./utils/DepositPausable.sol";
-import "./utils/WithdrawalPausable.sol";
 
 /**
  * Umi token farm
@@ -19,7 +18,7 @@ import "./utils/WithdrawalPausable.sol";
  * 2nd. Rewards are paid in more $UMI
  * 3rd. Rewards can be collected anytime
  */
-contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, DepositPausable, WithdrawalPausable {
+contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, Pausable {
     using Address for address;
     using SafeMath for uint256;
     using Calculator for uint256;
@@ -37,17 +36,17 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, DepositPausable, Wit
     );
 
     /**
-     * Emitted when a user deposits tokens.
+     * Emitted when a user stakes tokens.
      * @param sender User address.
-     * @param id User's unique deposit ID.
+     * @param id User's unique stake ID.
      * @param balance Current user balance.
-     * @param depositTimestamp The time when deposit tokens.
+     * @param stakeTimestamp The time when stake tokens.
      */
-    event Deposited(
+    event Staked(
         address indexed sender,
         uint256 indexed id,
         uint256 balance,
-        uint256 depositTimestamp
+        uint256 stakeTimestamp
     );
 
     /**
@@ -58,22 +57,22 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, DepositPausable, Wit
     event ApySet(uint256 value, address sender);
 
     /**
-     * @dev Emitted when a user requests withdrawal.
+     * @dev Emitted when a user requests unstake.
      * @param sender User address.
-     * @param id User's unique deposit ID.
+     * @param id User's unique stake ID.
      */
-    event WithdrawalRequested(address indexed sender, uint256 indexed id);
+    event UnstakeRequested(address indexed sender, uint256 indexed id);
 
     /**
-     * @dev Emitted when a user withdraws tokens.
+     * @dev Emitted when a user unstakes tokens.
      * @param sender User address.
-     * @param id User's unique deposit ID.
-     * @param amount The amount of withdrawn tokens.
+     * @param id User's unique stake ID.
+     * @param amount The amount of ustake tokens.
      * @param balance Current user balance.
-     * @param totalWithInterest The amount of withdrawn tokens with interest.
+     * @param totalWithInterest The amount of unstake tokens with interest.
      * @param timePassed TimePassed seconds.
      */
-    event Withdrawn(
+    event Unstake(
         address indexed sender,
         uint256 indexed id,
         uint256 amount,
@@ -82,23 +81,41 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, DepositPausable, Wit
         uint256 timePassed
     );
 
+    /**
+     * @dev Emitted when a user withdraw interest only.
+     * @param sender User address.
+     * @param id User's unique stake ID.
+     * @param balance Current user balance of this stake.
+     * @param timePassed TimePassed seconds.
+     * @param interest The amount of interest.
+     * @param claimTimestamp claim timestamp.
+     */
+    event Claimed(
+        address indexed sender,
+        uint256 indexed id,
+        uint256 balance,
+        uint256 interest,
+        uint256 timePassed,
+        uint256 claimTimestamp
+    );
+
     // stake token
     ERC20Interface public umiToken;
 
-    // The deposit balances of users(store address->(depositId->amount))
+    // The stake balances of users(store address->(stakeId->amount))
     mapping(address => mapping(uint256 => uint256)) public balances;
-    // The dates of users' deposits(store address->(depositId->timestamp))
-    mapping(address => mapping(uint256 => uint256)) public depositDates;
-    // The dates of users' withdrawal requests(address->(depositId->timestamp))
-    mapping(address => mapping(uint256 => uint256)) public withdrawalRequestsDates;
-    // The last deposit id(store address->last deposit id)
-    mapping(address => uint256) public lastDepositIds;
+    // The dates of users' stakes(store address->(stakeId->timestamp))
+    mapping(address => mapping(uint256 => uint256)) public stakeDates;
+    // The dates of users' unstake requests(address->(stakeId->timestamp))
+    mapping(address => mapping(uint256 => uint256)) public unstakeRequestsDates;
+    // The last stake id(store address->last stake id)
+    mapping(address => uint256) public lastStakeIds;
     // The total staked amount
     uint256 public totalStaked;
     // The farming rewards of users(address => total amount)
     mapping(address => uint256) public funding;
 
-    // Variable that prevents _deposit method from being called 2 times
+    // Variable that prevents _stake method from being called 2 times
     bool private locked;
 
     // default annual percentage yield is 12% (in percentage), only contract owner can modify it
@@ -145,7 +162,7 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, DepositPausable, Wit
     }
 
     /**
-     * Get umi token balance by address
+     * Get umi token balance by address.
      * @param addr The address of the account that needs to check the balance
      * @return Return balance of umi token
      */
@@ -154,33 +171,33 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, DepositPausable, Wit
     }
 
     /**
-     * This method is used to deposit tokens to a new deposit.
-     * It generates a new deposit ID and calls another internal "deposit" method. See its description.
-     * @param _amount The amount to deposit.
+     * This method is used to stake tokens to a new stake.
+     * It generates a new stake ID and calls another internal "stake" method. See its description.
+     * @param _amount The amount to stake.
      */
-    function deposit(uint256 _amount) public whenNotPausedDeposit {
-        deposit(++lastDepositIds[msg.sender], _amount);
+    function stake(uint256 _amount) public whenNotPaused {
+        stake(++lastStakeIds[msg.sender], _amount);
     }
 
     /**
-     * This method is used to deposit tokens.
-     * It calls the internal "_deposit" method and transfers tokens from sender to contract.
+     * This method is used to stake tokens.
+     * It calls the internal "_stake" method and transfers tokens from sender to contract.
      * Sender must approve tokens first.
      *
-     * Instead this, user can use the simple "transfer" method of STAKE token contract to make a deposit.
+     * Instead this, user can use the simple "transfer" method of STAKE token contract to make a stake.
      * Sender's approval is not needed in this case.
      *
-     * Note: each call updates the deposit date so be careful if you want to make a long staking.
+     * Note: each call updates the stake date so be careful if you want to make a long staking.
      *
-     * @param _depositId User's unique deposit ID.
-     * @param _amount The amount to deposit.
+     * @param _stakeId User's unique stake ID.
+     * @param _amount The amount to stake.
      */
-    function deposit(uint256 _depositId, uint256 _amount) internal {
+    function stake(uint256 _stakeId, uint256 _amount) internal {
         require(
-            _depositId > 0 && _depositId <= lastDepositIds[msg.sender],
-            "wrong deposit id"
+            _stakeId > 0 && _stakeId <= lastStakeIds[msg.sender],
+            "wrong stake id"
         );
-        _deposit(msg.sender, _depositId, _amount);
+        _stake(msg.sender, _stakeId, _amount);
         _setLocked(true);
         require(
             umiToken.transferFrom(msg.sender, address(this), _amount),
@@ -190,117 +207,117 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, DepositPausable, Wit
     }
 
     /**
-     * @dev Increases the user balance, and updates the deposit date.
+     * @dev Increases the user balance, and updates the stake date.
      * @param _sender The address of the sender.
-     * @param _id User's unique deposit ID.
-     * @param _amount The amount to deposit.
+     * @param _id User's unique stake ID.
+     * @param _amount The amount to stake.
      */
-    function _deposit(
+    function _stake(
         address _sender,
         uint256 _id,
         uint256 _amount
     ) internal {
-        require(_amount > 0, "deposit amount should be more than 0");
+        require(_amount > 0, "stake amount should be more than 0");
         balances[_sender][_id] = _amount;
         totalStaked = totalStaked.add(_amount);
-        uint256 depositTimestamp = _now();
-        depositDates[_sender][_id] = depositTimestamp;
-        emit Deposited(_sender, _id, _amount, depositTimestamp);
+        uint256 stakeTimestamp = _now();
+        stakeDates[_sender][_id] = stakeTimestamp;
+        emit Staked(_sender, _id, _amount, stakeTimestamp);
     }
 
     /**
-     * This method is used to request a withdrawal.
+     * This method is used to request a unstake, with certain amount(it also can be used to unstake all).
      * It sets the date of the request.
      *
      * Note: each call updates the date of the request so don't call this method twice during the lock.
      *
-     * @param _depositId User's unique deposit ID.
-     * @param _amount The amount to withdraw, 
+     * @param _stakeId User's unique stake ID.
+     * @param _amount The amount to unstake, 
      */
-    function requestWithdrawal(uint256 _depositId, uint256 _amount) external whenNotPausedWithdrawal nonReentrant {
+    function unstakeCertainAmount(uint256 _stakeId, uint256 _amount) external whenNotPaused nonReentrant {
         require(
-            _depositId > 0 && _depositId <= lastDepositIds[msg.sender],
-            "requestWithdrawal with wrong deposit id"
+            _stakeId > 0 && _stakeId <= lastStakeIds[msg.sender],
+            "unstake certain amount with wrong stake id"
         );
-        require(_amount > 0, "requestWithdrawal amount should be more than 0");
-        withdrawalRequestsDates[msg.sender][_depositId] = _now();
-        emit WithdrawalRequested(msg.sender, _depositId);
-        // make Withdrawal
-        makeRequestedWithdrawal(_depositId, _amount);
+        require(_amount > 0, "unstake certain amount should be more than 0");
+        unstakeRequestsDates[msg.sender][_stakeId] = _now();
+        emit UnstakeRequested(msg.sender, _stakeId);
+        // make unstake
+        makeRequestedUnstake(_stakeId, _amount);
     }
 
     /**
-     * This method is used to request a withdrawal, and withdrawal all the amount of deposit.
+     * This method is used to request a unstake, and unstake all the amount of stake.
      * It sets the date of the request.
      *
      * Note: each call updates the date of the request so don't call this method twice during the lock.
      *
-     * @param _depositId User's unique deposit ID.
+     * @param _stakeId User's unique stake ID.
      */
-    function requestWithdrawalAll(uint256 _depositId) external whenNotPausedWithdrawal nonReentrant {
+    function unstake(uint256 _stakeId) external whenNotPaused nonReentrant {
         require(
-            _depositId > 0 && _depositId <= lastDepositIds[msg.sender],
-            "requestWithdrawalAll with wrong deposit id"
+            _stakeId > 0 && _stakeId <= lastStakeIds[msg.sender],
+            "unstake all with wrong stake id"
         );
-        withdrawalRequestsDates[msg.sender][_depositId] = _now();
-        emit WithdrawalRequested(msg.sender, _depositId);
-        // make Withdrawal
-        makeRequestedWithdrawal(_depositId, 0);
+        unstakeRequestsDates[msg.sender][_stakeId] = _now();
+        emit UnstakeRequested(msg.sender, _stakeId);
+        // make unstake
+        makeRequestedUnstake(_stakeId, 0);
     }
 
     /**
-     * This method is used to make a requested withdrawal.
-     * It calls the internal "_withdraw" method and resets the date of the request.
+     * This method is used to make a requested unstake.
+     * It calls the internal "_unstake" method and resets the date of the request.
      *
-     * @param _depositId User's unique deposit ID.
-     * @param _amount The amount to withdraw (0 - to withdraw all).
+     * @param _stakeId User's unique stake ID.
+     * @param _amount The amount to unstake (0 - to unstake all).
      */
-    function makeRequestedWithdrawal(uint256 _depositId, uint256 _amount)
+    function makeRequestedUnstake(uint256 _stakeId, uint256 _amount)
         internal
     {
-        uint256 requestDate = withdrawalRequestsDates[msg.sender][_depositId];
-        require(requestDate > 0, "withdrawal wasn't requested");
-        withdrawalRequestsDates[msg.sender][_depositId] = 0;
-        _withdraw(msg.sender, _depositId, _amount);
+        uint256 requestDate = unstakeRequestsDates[msg.sender][_stakeId];
+        require(requestDate > 0, "unstake wasn't requested");
+        unstakeRequestsDates[msg.sender][_stakeId] = 0;
+        _unstake(msg.sender, _stakeId, _amount);
     }
 
     /**
      * Calls internal "calculateRewardsAndTimePassed" method and then transfers tokens to the sender.
      * @param _sender The address of the sender.
-     * @param _id User's unique deposit ID.
-     * @param _amount The amount to withdraw (0 - to withdraw all).
+     * @param _id User's unique stake ID.
+     * @param _amount The amount to unstake (0 - to unstake all).
      */
-    function _withdraw(
+    function _unstake(
         address _sender,
         uint256 _id,
         uint256 _amount
     ) internal {
         require(
-            _id > 0 && _id <= lastDepositIds[_sender],
-            "_withdraw wrong deposit id"
+            _id > 0 && _id <= lastStakeIds[_sender],
+            "_unstake wrong stake id"
         );
         require(
             balances[_sender][_id] > 0 && balances[_sender][_id] >= _amount,
-            "_withdraw insufficient funds"
+            "_unstake insufficient funds"
         );
         // calculate interest
         (uint256 totalWithInterest, uint256 timePassed) =
             calculateRewardsAndTimePassed(_sender, _id, _amount);
         require(
             totalWithInterest > 0 && timePassed > 0,
-            "_withdraw totalWithInterest<=0 or timePassed<=0"
+            "_unstake totalWithInterest<=0 or timePassed<=0"
         );
         uint256 amount = _amount == 0 ? balances[_sender][_id] : _amount;
         balances[_sender][_id] = balances[_sender][_id].sub(amount);
         totalStaked = totalStaked.sub(amount);
         if (balances[_sender][_id] == 0) {
-            depositDates[_sender][_id] = 0;
+            stakeDates[_sender][_id] = 0;
         }
         require(
             umiToken.transfer(_sender, totalWithInterest),
             "transfer failed"
         );
-        emit Withdrawn(
+        emit Unstake(
             _sender,
             _id,
             amount,
@@ -311,10 +328,39 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, DepositPausable, Wit
     }
 
     /**
+    * Withdraws the interest only of certain stake, and updates the stake date.
+    *
+    * @param _id User's unique stake ID.
+    */
+    function claim(uint256 _id) external whenNotPaused nonReentrant {
+        require(_id > 0 && _id <= lastStakeIds[msg.sender], "claim wrong stake id");
+        uint256 balance = balances[msg.sender][_id];
+        require(balance > 0, "claim balance must more than 0");
+        // calculate interest
+        (uint256 totalWithInterest, uint256 timePassed) =
+            calculateRewardsAndTimePassed(msg.sender, _id, 0);
+        require(
+            totalWithInterest > 0 && timePassed > 0,
+            "claim totalWithInterest<=0 or timePassed<=0"
+        );
+        uint256 interest = totalWithInterest.sub(balance);
+        require(interest > 0, "claim interest must more than 0");
+        uint256 claimTimestamp = _now();
+        // update stake date, and withdraw interest
+        stakeDates[msg.sender][_id] = claimTimestamp;
+        require(
+            umiToken.transfer(msg.sender, interest),
+            "claim transfer failed"
+        );
+        // send claim event
+        emit Claimed(msg.sender, _id, balance, interest, timePassed, claimTimestamp);
+    }
+
+    /**
      * calculate interest and time passed
      * @param _user User's address.
-     * @param _id User's unique deposit ID.
-     * @param _amount Amount based on which interest is calculated. When 0, current deposit balance is used.
+     * @param _id User's unique stake ID.
+     * @param _amount Amount based on which interest is calculated. When 0, current stake balance is used.
      * @return Return total with interest and time passed
      */
     function calculateRewardsAndTimePassed(
@@ -324,12 +370,12 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, DepositPausable, Wit
     ) public view returns (uint256, uint256) {
         uint256 currentBalance = balances[_user][_id];
         uint256 amount = _amount == 0 ? currentBalance : _amount;
-        uint256 depositDate = depositDates[_user][_id];
-        if (amount == 0 || depositDate == 0) {
+        uint256 stakeDate = stakeDates[_user][_id];
+        if (amount == 0 || stakeDate == 0) {
             return (0, 0);
         }
         // seconds
-        uint256 timePassed = _now().sub(depositDate);
+        uint256 timePassed = _now().sub(stakeDate);
         if (timePassed < ONE_DAY) {
             // if timePassed less than one day, rewards will be 0
             return (amount, timePassed);
@@ -354,15 +400,15 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, DepositPausable, Wit
         returns (uint256)
     {
         require(_address != address(0), "getTotalBalanceOfUser zero address");
-        uint256 lastDepositId = lastDepositIds[_address];
-        if (lastDepositId <= 0) {
+        uint256 lastStakeId = lastStakeIds[_address];
+        if (lastStakeId <= 0) {
             return 0;
         }
         uint256 totalBalance;
-        mapping(uint256 => uint256) storage depositBalanceMapping =
+        mapping(uint256 => uint256) storage stakeBalanceMapping =
             balances[_address];
-        for (uint256 i = 1; i <= lastDepositId; i++) {
-            totalBalance += depositBalanceMapping[i];
+        for (uint256 i = 1; i <= lastStakeId; i++) {
+            totalBalance += stakeBalanceMapping[i];
         }
         return totalBalance;
     }
@@ -384,47 +430,25 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, DepositPausable, Wit
     }
 
     /**
-     * Pauses all token deposit.
+     * Pauses all token stake, unstake.
      * 
-     * See {DepositPausable-_pauseDeposit}.
+     * See {Pausable-_pause}.
      * 
      * Requirements: the caller must be the owner.
      */
-    function pauseDeposit() public onlyOwner {
-        _pauseDeposit();
+    function pause() public onlyOwner {
+        _pause();
     }
 
     /**
-     * Unpauses all token deposit.
+     * Unpauses all token stake, unstake.
      * 
-     * See {DepositPausable-_unpauseDeposit}.
-     * 
-     * Requirements: the caller must be the owner.
-     */
-    function unpauseDeposit() public onlyOwner {
-        _unpauseDeposit();
-    }
-
-    /**
-     * Pauses all token withdrawal.
-     * 
-     * See {WithdrawalPausable-_pauseWithdrawal}.
+     * See {Pausable-_unpause}.
      * 
      * Requirements: the caller must be the owner.
      */
-    function pauseWithdrawal() public onlyOwner {
-        _pauseWithdrawal();
-    }
-
-    /**
-     * Unpauses all token withdrawal.
-     * 
-     * See {WithdrawalPausable-_unpauseWithdrawal}.
-     * 
-     * Requirements: the caller must be the owner.
-     */
-    function unpauseWithdrawal() public onlyOwner {
-        _unpauseWithdrawal();
+    function unpause() public onlyOwner {
+        _unpause();
     }
 
 }
