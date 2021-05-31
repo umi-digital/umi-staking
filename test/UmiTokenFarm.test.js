@@ -180,7 +180,7 @@ contract('UmiTokenFarm', async (accounts) => {
             const timestamp = await getBlockTimestamp(receipt);
             const stakeDate = await umiTokenFarm.stakeDates(accounts[0], lastStakeIdOfAccount0)
             assert.equal(BN(timestamp).toString(), BN(stakeDate).toString())
-            console.log('8th test stake date=%s', BN(stakeDate).toString())
+            // console.log('8th test stake date=%s', BN(stakeDate).toString())
             // 8.6. check balance after stake 1000
             const balances = await umiTokenFarm.balances(accounts[0], lastStakeIdOfAccount0)
             assert.equal(parseWei2Ether(balances), 1000)
@@ -307,8 +307,8 @@ contract('UmiTokenFarm', async (accounts) => {
             const lastStakeIdOfAccount0 = await umiTokenFarm.lastStakeIds(accounts[0])
 
             // 13.4. before unstake balance of accounts[0]
-            let beforeWithdrawalBalance = await umiTokenFarm.getUmiTokenBalance(accounts[0]);
-            console.log('13th test, Stake 1000, before unstake balance of accounts[0] %s', parseWei2Ether(beforeWithdrawalBalance))
+            let beforeUnstakeBalance = await umiTokenFarm.getUmiTokenBalance(accounts[0]);
+            console.log('13th test, Stake 1000, before unstake balance of accounts[0] %s', parseWei2Ether(beforeUnstakeBalance))
 
             // 13.5. unstakeCertainAmount
             await umiTokenFarm.unstakeCertainAmount(lastStakeIdOfAccount0, ether('1000'), { from: accounts[0] });
@@ -321,8 +321,8 @@ contract('UmiTokenFarm', async (accounts) => {
             assert.equal(parseWei2Ether(balances), 0)
 
             // 13.8. after unstake balance of accounts[0]
-            let afterWithdrawalBalance = await umiTokenFarm.getUmiTokenBalance(accounts[0]);
-            console.log('13th test, unstake 1000 ten days later, after unstake balance of accounts[0] %s, total with rewards %s', parseWei2Ether(afterWithdrawalBalance), parseWei2Ether(afterWithdrawalBalance) - parseWei2Ether(beforeWithdrawalBalance))
+            let afterUnstakeBalance = await umiTokenFarm.getUmiTokenBalance(accounts[0]);
+            console.log('13th test, unstake 1000 ten days later, after unstake balance of accounts[0] %s, total with rewards %s', parseWei2Ether(afterUnstakeBalance), parseWei2Ether(afterUnstakeBalance) - parseWei2Ether(beforeUnstakeBalance))
         })
 
         it('14th test, unstakeCertainAmount correct, stake 1000 then unstake 500 ', async () => {
@@ -336,8 +336,8 @@ contract('UmiTokenFarm', async (accounts) => {
             const lastStakeIdOfAccount1 = await umiTokenFarm.lastStakeIds(accounts[1])
 
             // 14.4. before unstake balance of accounts[1]
-            let beforeWithdrawalBalance = await umiTokenFarm.getUmiTokenBalance(accounts[1]);
-            console.log('14 test, Stake 1000, before unstake balance of accounts[1] %s', parseWei2Ether(beforeWithdrawalBalance))
+            let beforeUnstakeBalance = await umiTokenFarm.getUmiTokenBalance(accounts[1]);
+            console.log('14 test, Stake 1000, before unstake balance of accounts[1] %s', parseWei2Ether(beforeUnstakeBalance))
 
             // 14.5. unstakeCertainAmount
             await umiTokenFarm.unstakeCertainAmount(lastStakeIdOfAccount1, ether('500'), { from: accounts[1] });
@@ -351,8 +351,8 @@ contract('UmiTokenFarm', async (accounts) => {
             assert.equal(parseWei2Ether(balances), 500)
 
             // 14.8. after unstake balance of accounts[1]
-            let afterWithdrawalBalance = await umiTokenFarm.getUmiTokenBalance(accounts[1]);
-            console.log('14 test, unstake 500 ten days later, after unstake balance of accounts[1] %s, total with rewards %s', parseWei2Ether(afterWithdrawalBalance), parseWei2Ether(afterWithdrawalBalance) - parseWei2Ether(beforeWithdrawalBalance))
+            let afterUnstakeBalance = await umiTokenFarm.getUmiTokenBalance(accounts[1]);
+            console.log('14 test, unstake 500 ten days later, after unstake balance of accounts[1] %s, total with rewards %s', parseWei2Ether(afterUnstakeBalance), parseWei2Ether(afterUnstakeBalance) - parseWei2Ether(beforeUnstakeBalance))
         })
 
         // accounts[2] stake 1000 ether, and unstake all after 2 years later
@@ -367,8 +367,8 @@ contract('UmiTokenFarm', async (accounts) => {
             const lastStakeIdOfAccount2 = await umiTokenFarm.lastStakeIds(accounts[2])
 
             // 15.4. before unstake balance of accounts[2]
-            let beforeWithdrawalBalance = await umiTokenFarm.getUmiTokenBalance(accounts[2]);
-            console.log('15th test, stake 1000, before unstake balance of accounts[2] %s', parseWei2Ether(beforeWithdrawalBalance))
+            let beforeUnstakeBalance = await umiTokenFarm.getUmiTokenBalance(accounts[2]);
+            console.log('15th test, stake 1000, before unstake balance of accounts[2] %s', parseWei2Ether(beforeUnstakeBalance))
 
             // 15.5. unstakeCertainAmount
             await umiTokenFarm.unstakeCertainAmount(lastStakeIdOfAccount2, ether('1000'), { from: accounts[2] });
@@ -381,8 +381,8 @@ contract('UmiTokenFarm', async (accounts) => {
             assert.equal(parseWei2Ether(balances), 0)
 
             // 15.8. after unstake balance of accounts[2]
-            let afterWithdrawalBalance = await umiTokenFarm.getUmiTokenBalance(accounts[2]);
-            console.log('15th test, unstake 1000 2 years later, after unstake balance of accounts[2] %s, total with rewards %s', parseWei2Ether(afterWithdrawalBalance), parseWei2Ether(afterWithdrawalBalance) - parseWei2Ether(beforeWithdrawalBalance))
+            let afterUnstakeBalance = await umiTokenFarm.getUmiTokenBalance(accounts[2]);
+            console.log('15th test, unstake 1000 2 years later, after unstake balance of accounts[2] %s, total with rewards %s', parseWei2Ether(afterUnstakeBalance), parseWei2Ether(afterUnstakeBalance) - parseWei2Ether(beforeUnstakeBalance))
         })
 
         it('16th test, unstakeCertainAmount incorrect, with wrong stake id', async () => {
@@ -451,8 +451,8 @@ contract('UmiTokenFarm', async (accounts) => {
             const lastStakeIdOfAccount0 = await umiTokenFarm.lastStakeIds(accounts[0])
 
             // 19.4. before unstake balance of accounts[0]
-            let beforeWithdrawalBalance = await umiTokenFarm.getUmiTokenBalance(accounts[0]);
-            console.log('19th test, Stake 1000, before unstake balance of accounts[0] %s', parseWei2Ether(beforeWithdrawalBalance))
+            let beforeUnstakeBalance = await umiTokenFarm.getUmiTokenBalance(accounts[0]);
+            console.log('19th test, Stake 1000, before unstake balance of accounts[0] %s', parseWei2Ether(beforeUnstakeBalance))
 
             // 19.5. request unstake all
             await umiTokenFarm.unstake(lastStakeIdOfAccount0, { from: accounts[0] });
@@ -465,8 +465,8 @@ contract('UmiTokenFarm', async (accounts) => {
             assert.equal(parseWei2Ether(balances), 0)
 
             // 19.8. after unstake balance of accounts[0]
-            let afterWithdrawalBalance = await umiTokenFarm.getUmiTokenBalance(accounts[0]);
-            console.log('19th test, Unstake 1000 ten days later, after unstake balance of accounts[0] %s, total with rewards %s', parseWei2Ether(afterWithdrawalBalance), parseWei2Ether(afterWithdrawalBalance) - parseWei2Ether(beforeWithdrawalBalance))
+            let afterUnstakeBalance = await umiTokenFarm.getUmiTokenBalance(accounts[0]);
+            console.log('19th test, Unstake 1000 ten days later, after unstake balance of accounts[0] %s, total with rewards %s', parseWei2Ether(afterUnstakeBalance), parseWei2Ether(afterUnstakeBalance) - parseWei2Ether(beforeUnstakeBalance))
         })
 
         it('20th test, unstake all incorrect, with wrong stake id', async () => {
