@@ -114,6 +114,8 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, Pausable {
     uint256 public totalStaked;
     // The farming rewards of users(address => total amount)
     mapping(address => uint256) public funding;
+    // the total farming rewards for users
+    uint256 public totalFunding;
 
     // Variable that prevents _stake method from being called 2 times
     bool private locked;
@@ -141,6 +143,8 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, Pausable {
     function fundingContract(uint256 _amount) external nonReentrant {
         require(_amount > 0, "fundingContract _amount should be more than 0");
         funding[msg.sender] += _amount;
+        // increase total funding
+        totalFunding += _amount;
         require(
             umiToken.transferFrom(msg.sender, address(this), _amount),
             "fundingContract transferFrom failed"
@@ -313,8 +317,21 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, Pausable {
         if (balances[_sender][_id] == 0) {
             stakeDates[_sender][_id] = 0;
         }
+        // interest to be paid
+        uint256 interest = totalWithInterest.sub(amount);
+        uint256 unstakeAmount = 0;
+        if (totalFunding >= interest) {
+            // total funding is enough to pay interest
+            unstakeAmount = totalWithInterest;
+            // reduce total funding
+            totalFunding = totalFunding.sub(interest);
+        } else {
+            // total funding is not enough to pay interest, the contract's UMI has been completely drained.
+            // make sure users can unstake their capital.
+            unstakeAmount = amount;
+        }
         require(
-            umiToken.transfer(_sender, totalWithInterest),
+            umiToken.transfer(_sender, unstakeAmount),
             "transfer failed"
         );
         emit Unstake(
@@ -345,6 +362,9 @@ contract UmiTokenFarm is Context, Ownable, ReentrancyGuard, Pausable {
         );
         uint256 interest = totalWithInterest.sub(balance);
         require(interest > 0, "claim interest must more than 0");
+        require(totalFunding >= interest, "total funding not enough to pay interest");
+        // reduce total funding
+        totalFunding = totalFunding.sub(interest);
         uint256 claimTimestamp = _now();
         // update stake date, and withdraw interest
         stakeDates[msg.sender][_id] = claimTimestamp;
